@@ -17,6 +17,7 @@ import glob
 import os
 import datetime as dt
 import numpy as np
+from multiprocessing import Pool
 
 
 # OS Functions
@@ -65,7 +66,7 @@ def Excel_to_Pandas(filename,check_update=False,SheetName=None):
 
     df=Cleanup_Dataframe(df)
     logger.info(df.info(verbose=True))
-    return df
+    return (filename, df)
 
 def Cleanup_Dataframe(df):
     logger.info('Starting Cleanup_Dataframe')
@@ -122,17 +123,27 @@ def main():
     Circuit_Switcher_filename = 'Circuit Switcher Asset a93a3aebd.xlsx'
     Metalclad_Switchgear_filename = 'Metalclad Switchgear Asset aa554c63f.xlsx'
 
+    Excel_Files = [Station_filename, Transformer_filename, Breaker_filename, Relay_filename, Metalclad_Switchgear_filename]
+
+    pool = Pool(processes=8)
+
+
     #Import Excel files
-    StationDF = Excel_to_Pandas(Station_filename, False)
-    TransformerDF = Excel_to_Pandas(Transformer_filename, False)
-    BreakerDF = Excel_to_Pandas(Breaker_filename, False)
-    RelayDF = Excel_to_Pandas(Relay_filename, False)
-    Metalclad_Switchgear_DF = Excel_to_Pandas(Metalclad_Switchgear_filename, False)
+    df_list = pool.map(Excel_to_Pandas, Excel_Files)
+
+        #StationDF = df_list
+        #TransformerDF = Excel_to_Pandas(Transformer_filename, False)
+        #BreakerDF = Excel_to_Pandas(Breaker_filename, False)
+        #RelayDF = Excel_to_Pandas(Relay_filename, False)
+        #Metalclad_Switchgear_DF = Excel_to_Pandas(Metalclad_Switchgear_filename, False)
 
     #Data Cleanup
-    AIStationDF = station_df_cleanup(StationDF, Metalclad_Switchgear_DF)
-    PowerTransformerDF = transformer_df_cleanup(TransformerDF)
-    Outdoor_BreakerDF = breaker_df_cleanup(BreakerDF)
+
+    AIStationDF = station_df_cleanup(df_list[next(i for i, t in enumerate(df_list) if t[0] == Station_filename)][1],
+                                     df_list[next(i for i, t in enumerate(df_list) if t[0] == Metalclad_Switchgear_filename)][1])
+
+    PowerTransformerDF = transformer_df_cleanup(df_list[next(i for i, t in enumerate(df_list) if t[0] == Transformer_filename)][1])
+    Outdoor_BreakerDF = breaker_df_cleanup(df_list[next(i for i, t in enumerate(df_list) if t[0] == Breaker_filename)][1])
 
     #Create new date in the dataframes
     AIStationDF = station_df_create_data(AIStationDF, PowerTransformerDF, Outdoor_BreakerDF)
