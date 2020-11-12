@@ -100,13 +100,25 @@ def station_df_create_data(StationDF, PowerTransformerDF, Outdoor_BreakerDF):
 
 #Get a count of the number of XMFR at a station
     countDF = PowerTransformerDF.groupby(['Station_Name'], as_index=False).agg(XFMER_Count=('Asset_Number', pd.Series.count))
-#Merge count into StationDF
-    StationDF = pd.merge(StationDF, countDF, on='Station_Name', how='left', )
+    StationDF = pd.merge(StationDF, countDF, on='Station_Name', how='left')
+
+#Build indication for 1 PH Stations
+    Single_Phase_Stations_DF = PowerTransformerDF[PowerTransformerDF['Asset_Description'].str.contains('1 PH')]
+    Single_Phase_Stations_DF['Single_Phase_Station'] = True
+    StationDF = pd.merge(StationDF, Single_Phase_Stations_DF[['Station_Name','Single_Phase_Station']], on='Station_Name', how='left')
+
+
+# Get a Avg Age of breakers at station
+    Outdoor_BreakerDF['Age'] = (dt.date.today() - Outdoor_BreakerDF['Installation_Date'].dt.date) / 365
+    #meanDF = Outdoor_BreakerDF.groupby(['Station_Name']).Age.mean(numeric_only=False)
+    meanDF = Outdoor_BreakerDF.groupby(['Station_Name']).agg(Breaker_Mean_Age=('Age', pd.Series.mean))
+    StationDF = pd.merge(StationDF, meanDF, on='Station_Name', how='left')
 
     return StationDF
 
 def breaker_df_cleanup(BreakerDF):
     BreakerDF = BreakerDF[BreakerDF['BKR_CLASS'].str.contains('OUTDOOR')]
+    BreakerDF['Installation_Date'] = pd.to_datetime(BreakerDF['Installation_Date'], errors='raise')
 
     return BreakerDF
 
@@ -149,7 +161,8 @@ def main():
     AIStationDF = station_df_create_data(AIStationDF, PowerTransformerDF, Outdoor_BreakerDF)
 
     # Select columns to keep
-    AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age','XFMER_Count'
+    AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
+                               'XFMER_Count', 'Breaker_Mean_Age', 'Single_Phase_Station'
                            ]]
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
