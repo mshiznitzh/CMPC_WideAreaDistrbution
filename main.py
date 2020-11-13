@@ -95,6 +95,13 @@ def transformer_df_cleanup(TransformerDF):
 
     return TransformerDF
 
+def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF):
+    PowerTransformerDF['Age'] = (dt.date.today() - PowerTransformerDF['Manufacture_Date'].dt.date) / 365
+    Transformer_RiskDF = Transformer_RiskDF.rename(columns={"Asset": "Maximo_Code"})
+    PowerTransformerDF = pd.merge(PowerTransformerDF,Transformer_RiskDF[['Maximo_Code','Risk_Index_(Normalized)']],on='Maximo_Code',how='left')
+
+    return PowerTransformerDF
+
 def station_df_create_data(StationDF, PowerTransformerDF, Outdoor_BreakerDF):
     StationDF['Age'] = (dt.date.today() - StationDF['IN_SERVICE_DATE'].dt.date)/365
 
@@ -103,24 +110,57 @@ def station_df_create_data(StationDF, PowerTransformerDF, Outdoor_BreakerDF):
     StationDF = pd.merge(StationDF, countDF, on='Station_Name', how='left')
 
 #Build indication for 1 PH Stations
-    Single_Phase_Stations_DF = PowerTransformerDF[PowerTransformerDF['Asset_Description'].str.contains('1 PH')]
+    Single_Phase_Stations_DF = PowerTransformerDF[PowerTransformerDF['NUM_PH'] == 1]
     Single_Phase_Stations_DF['Single_Phase_Station'] = True
     StationDF = pd.merge(StationDF, Single_Phase_Stations_DF[['Station_Name','Single_Phase_Station']], on='Station_Name', how='left')
 
 
 # Get a Avg Age of breakers at station
-    Outdoor_BreakerDF['Age'] = (dt.date.today() - Outdoor_BreakerDF['Installation_Date'].dt.date) / 365
-    #meanDF = Outdoor_BreakerDF.groupby(['Station_Name']).Age.mean(numeric_only=False)
-    meanDF = Outdoor_BreakerDF.groupby(['Station_Name']).agg(Breaker_Mean_Age=('Age', pd.Series.mean))
+    Outdoor_BreakerDF['Age'] = (dt.date.today() - Outdoor_BreakerDF['Manufacture_Date'].dt.date) / 365
+    Outdoor_FeedersDF=Outdoor_BreakerDF[Outdoor_BreakerDF['BKR_SERVICE'].str.match('FEEDER')]
+    meanDF = Outdoor_FeedersDF.groupby(['Station_Name']).agg(Mean_Feeder_Age=('Age', pd.Series.mean))
     StationDF = pd.merge(StationDF, meanDF, on='Station_Name', how='left')
 
+    StationDF.drop_duplicates(inplace=True)
     return StationDF
 
 def breaker_df_cleanup(BreakerDF):
     BreakerDF = BreakerDF[BreakerDF['BKR_CLASS'].str.contains('OUTDOOR')]
-    BreakerDF['Installation_Date'] = pd.to_datetime(BreakerDF['Installation_Date'], errors='raise')
+    BreakerDF['Manufacture_Date'] = pd.to_datetime(BreakerDF['Manufacture_Date'], errors='raise')
+    BreakerDF['SELF_CONTAINED'].replace('SELF-CONTAINED', True, inplace=True)
+    BreakerDF['SELF_CONTAINED'].replace('Y', True, inplace=True)
+    BreakerDF['SELF_CONTAINED'].replace('NON SELF-CONTAINED', False, inplace=True)
+    BreakerDF['SELF_CONTAINED'].replace('N', False, inplace=True)
+
+    BreakerDF['Associated_XFMR']=np.nan
+
+    BreakerDF['Associated_XFMR'] = np.where((BreakerDF['Maximo_Code'].str.match(r'^.{9}1') &
+                                             (BreakerDF['BKR_SERVICE'].str.match('FEEDER')))
+                                            , '1', BreakerDF['Associated_XFMR'])
+
+
+
+
+
 
     return BreakerDF
+
+def breaker_df_create_data(BreakerDF,PowerTransformerDF):
+
+    stations_with_Single_BankDF = PowerTransformerDF[
+        PowerTransformerDF['Station_Name'].map(PowerTransformerDF['Station_Name'].value_counts()) == 1]
+
+    Single_Bank = list(stations_with_Single_BankDF['Station_Name'])
+
+   # BreakerDF['Associated_XFMR'] = np.where((BreakerDF['Station_Name'].isin(Single_Bank)  &
+    #                                         (BreakerDF['BKR_SERVICE'].str.match('FEEDER')))
+     #                                       ,'1', BreakerDF['Associated_XFMR'] )
+
+    return BreakerDF
+
+def relay_df_cleanup(relaydf):
+    return relaydf
+
 
 def main():
 
@@ -134,20 +174,16 @@ def main():
     Relay_filename = 'Dist Locations w Relays 110620.xls'
     Circuit_Switcher_filename = 'Circuit Switcher Asset a93a3aebd.xlsx'
     Metalclad_Switchgear_filename = 'Metalclad Switchgear Asset aa554c63f.xlsx'
+    Transformer_Risk_filename = 'Oncor Transformer Asset Health Export - Risk Matrix - System.csv'
 
     Excel_Files = [Station_filename, Transformer_filename, Breaker_filename, Relay_filename, Metalclad_Switchgear_filename]
 
     pool = Pool(processes=8)
 
-
     #Import Excel files
     df_list = pool.map(Excel_to_Pandas, Excel_Files)
 
-        #StationDF = df_list
-        #TransformerDF = Excel_to_Pandas(Transformer_filename, False)
-        #BreakerDF = Excel_to_Pandas(Breaker_filename, False)
-        #RelayDF = Excel_to_Pandas(Relay_filename, False)
-        #Metalclad_Switchgear_DF = Excel_to_Pandas(Metalclad_Switchgear_filename, False)
+    Transformer_RiskDF=Cleanup_Dataframe(pd.read_csv(Transformer_Risk_filename))
 
     #Data Cleanup
 
@@ -156,14 +192,23 @@ def main():
 
     PowerTransformerDF = transformer_df_cleanup(df_list[next(i for i, t in enumerate(df_list) if t[0] == Transformer_filename)][1])
     Outdoor_BreakerDF = breaker_df_cleanup(df_list[next(i for i, t in enumerate(df_list) if t[0] == Breaker_filename)][1])
+    RelayDataDF = relay_df_cleanup(df_list[next(i for i, t in enumerate(df_list) if t[0] == Relay_filename)][1])
 
     #Create new date in the dataframes
     AIStationDF = station_df_create_data(AIStationDF, PowerTransformerDF, Outdoor_BreakerDF)
+    PowerTransformerDF = transformer_df_create_data(PowerTransformerDF,Transformer_RiskDF)
+    breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF)
 
     # Select columns to keep
     AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
-                               'XFMER_Count', 'Breaker_Mean_Age', 'Single_Phase_Station'
+                               'XFMER_Count', 'Mean_Feeder_Age', 'Single_Phase_Station'
                            ]]
+
+    PowerTransformerDF = PowerTransformerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code',
+                               'Age', 'MAXIMUM_MVA', 'LV_NOM_KV', 'Risk_Index_(Normalized)']]
+
+    Outdoor_BreakerDF = Outdoor_BreakerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code','Age',
+                                           'BKR_SERVICE', 'SELF_CONTAINED', 'Manufacturer', 'BKR_MECH_MOD', 'BKR_INTERR', 'Associated_XFMR']]
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     writer = pd.ExcelWriter('CMPC_WideArea_AIS.xlsx', engine='xlsxwriter')
