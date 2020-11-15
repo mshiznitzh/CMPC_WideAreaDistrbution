@@ -50,6 +50,7 @@ def Change_Working_Path(path):
 
 # Pandas Functions
 def Excel_to_Pandas(filename, check_update=False, SheetName=None):
+    """Imports excel file to pandas returns filename and df"""
     logger.info('importing file ' + filename)
     df = []
     if check_update == True:
