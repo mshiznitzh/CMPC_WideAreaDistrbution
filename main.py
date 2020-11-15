@@ -37,7 +37,7 @@ def filesearch(word=""):
 
 
 def Change_Working_Path(path):
-    # Check if New path exists
+    """Check if New path exists if the path exist the working path will be changed else will print an error message"""
     if os.path.exists(path):
         # Change the current working Directory
         try:
