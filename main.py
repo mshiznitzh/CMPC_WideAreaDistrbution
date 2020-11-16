@@ -250,6 +250,8 @@ def summer_load_df_create_data(Summer_LoadDF, AIStationDF):
 
 
 def Fault_Reporting_Proiritization_df_cleanup(FRPdf):
+    '''Clean up will rename the 9th coloumn to DOC_Fault_Reporting_Prioritization.  Function returns FRPdf'''
+    FRPdf.rename(columns={ df.columns[9]: "DOC_Fault_Reporting_Prioritization" })
     return FRPdf
 
 
