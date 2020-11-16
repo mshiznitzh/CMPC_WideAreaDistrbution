@@ -256,7 +256,7 @@ def Fault_Reporting_Proiritization_df_cleanup(FRPdf):
 
 
 def Fault_Reporting_Proiritization_df_create_data(FRPdf):
-    FRPdf['Maximo_Asset'] = FRPdf['FEEDER_ID'].str.slice(start=0, stop=5) + '-' + FRPdf['FEEDER_ID'].str.slice(start=5)
+    FRPdf['Maximo_Asset'] = FRPdf['FEEDER_ID'].str.slice(start=0, stop=5) + '-' +'0' + FRPdf['FEEDER_ID'].str.slice(start=5)
     return FRPdf
 
 
