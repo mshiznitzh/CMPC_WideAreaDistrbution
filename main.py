@@ -165,7 +165,11 @@ def breaker_df_cleanup(BreakerDF):
     return BreakerDF
 
 
-def breaker_df_create_data(BreakerDF, PowerTransformerDF):
+def breaker_df_create_data(BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF):
+    BreakerDF = pd.merge(BreakerDF,
+                         Fault_Reporting_ProiritizationDF[['Maximo_Asset', 'DOC_Fault_Reporting_Prioritization']],
+                         left_on='Maximo_Code', right_on='Maximo_Asset')
+
     stations_with_Single_BankDF = PowerTransformerDF[
         PowerTransformerDF['Station_Name'].map(PowerTransformerDF['Station_Name'].value_counts()) == 1]
 
@@ -244,12 +248,15 @@ def summer_load_df_create_data(Summer_LoadDF, AIStationDF):
 
     return Summer_LoadDF
 
+
 def Fault_Reporting_Proiritization_df_cleanup(FRPdf):
     return FRPdf
+
 
 def Fault_Reporting_Proiritization_df_create_data(FRPdf):
     FRPdf['Maximo_Asset'] = FRPdf['FEEDER_ID'].str.slice(start=0, stop=5) + '-' + FRPdf['FEEDER_ID'].str.slice(start=5)
     return FRPdf
+
 
 def main():
     """ Main entry point of the app """
@@ -299,7 +306,6 @@ def main():
     PowerTransformerDF = transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF, AIStationDF)
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
     RelayDataDF = relay_df_create_data(RelayDataDF)
-
 
     # Select columns to keep
     AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
