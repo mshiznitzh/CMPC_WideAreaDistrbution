@@ -168,7 +168,7 @@ def breaker_df_cleanup(BreakerDF):
 def breaker_df_create_data(BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF):
     BreakerDF = pd.merge(BreakerDF,
                          Fault_Reporting_ProiritizationDF[['Maximo_Asset', 'DOC_Fault_Reporting_Prioritization']],
-                         left_on='Maximo_Code', right_on='Maximo_Asset')
+                         left_on='Maximo_Code', right_on='Maximo_Asset', how='left')
 
     stations_with_Single_BankDF = PowerTransformerDF[
         PowerTransformerDF['Station_Name'].map(PowerTransformerDF['Station_Name'].value_counts()) == 1]
@@ -251,7 +251,7 @@ def summer_load_df_create_data(Summer_LoadDF, AIStationDF):
 
 def Fault_Reporting_Proiritization_df_cleanup(FRPdf):
     '''Clean up will rename the 9th coloumn to DOC_Fault_Reporting_Prioritization.  Function returns FRPdf'''
-    FRPdf.rename(columns={ df.columns[9]: "DOC_Fault_Reporting_Prioritization" })
+    FRPdf = FRPdf.rename(columns={ FRPdf.columns[9]: "DOC_Fault_Reporting_Prioritization" })
     return FRPdf
 
 
@@ -320,7 +320,7 @@ def main():
 
     Outdoor_BreakerDF = Outdoor_BreakerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code', 'Age',
                                            'BKR_SERVICE', 'SELF_CONTAINED', 'Manufacturer', 'BKR_MECH_MOD',
-                                           'BKR_INTERR', 'Associated_XFMR']]
+                                           'BKR_INTERR', 'Associated_XFMR', 'DOC_Fault_Reporting_Prioritization']]
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     writer = pd.ExcelWriter('CMPC_WideArea_AIS.xlsx', engine='xlsxwriter')
