@@ -182,6 +182,13 @@ def relay_df_cleanup(relaydf):
     return relaydf
 
 
+def relay_df_create_data(relaydf, PowerTransformerDF):
+    relaydf['Maximo_Asset_Protected'] = relaydf['LOCATION'].str.slice(start=0, stop=5) + '-' + relaydf[
+        'LOCATION'].str.slice(start=10)
+
+    return relaydf
+
+
 def summer_load_df_cleanup(Summer_LoadDF):
     # One offs
     Summer_LoadDF['Transformer'] = Summer_LoadDF['Transformer'].str.replace('DEALEY STREET #1', 'DEALEY #1')
@@ -281,7 +288,7 @@ def main():
     AIStationDF = station_df_create_data(AIStationDF, PowerTransformerDF, Outdoor_BreakerDF)
     PowerTransformerDF = transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF, AIStationDF)
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF)
-
+    RelayDataDF = relay_df_create_data(RelayDataDF, PowerTransformerDF)
     # Select columns to keep
     AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
                                'XFMER_Count', 'Mean_Feeder_Age', 'Single_Phase_Station'
