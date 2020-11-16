@@ -182,7 +182,7 @@ def relay_df_cleanup(relaydf):
     return relaydf
 
 
-def relay_df_create_data(relaydf, PowerTransformerDF):
+def relay_df_create_data(relaydf):
     relaydf['Maximo_Asset_Protected'] = relaydf['LOCATION'].str.slice(start=0, stop=5) + '-' + relaydf[
         'LOCATION'].str.slice(start=10)
 
@@ -244,6 +244,12 @@ def summer_load_df_create_data(Summer_LoadDF, AIStationDF):
 
     return Summer_LoadDF
 
+def Fault_Reporting_Proiritization_df_cleanup(FRPdf):
+    return FRPdf
+
+def Fault_Reporting_Proiritization_df_create_data(FRPdf):
+    FRPdf['Maximo_Asset'] = FRPdf['FEEDER_ID'].str.slice(start=0, stop=5) + '-' + FRPdf['FEEDER_ID'].str.slice(start=5)
+    return FRPdf
 
 def main():
     """ Main entry point of the app """
@@ -258,9 +264,10 @@ def main():
     Metalclad_Switchgear_filename = 'Metalclad Switchgear Asset aa554c63f.xlsx'
     Transformer_Risk_filename = 'Oncor Transformer Asset Health Export - Risk Matrix - System.csv'
     Summer_Load_Filename = '2021 Load Projections(4-10)Summer - Clean.xlsx'
+    Fault_Reporting_Proiritization_filename = 'Fault Reporting Prioritization_EDOC.XLSX'
 
     Excel_Files = [Station_filename, Transformer_filename, Breaker_filename, Relay_filename,
-                   Metalclad_Switchgear_filename, Summer_Load_Filename]
+                   Metalclad_Switchgear_filename, Summer_Load_Filename, Fault_Reporting_Proiritization_filename]
 
     pool = Pool(processes=8)
 
@@ -282,13 +289,18 @@ def main():
     RelayDataDF = relay_df_cleanup(df_list[next(i for i, t in enumerate(df_list) if t[0] == Relay_filename)][1])
     Summer_LoadDF = summer_load_df_cleanup(
         df_list[next(i for i, t in enumerate(df_list) if t[0] == Summer_Load_Filename)][1])
+    Fault_Reporting_ProiritizationDF = Fault_Reporting_Proiritization_df_cleanup(
+        df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1])
 
     # Create new date in the dataframes
+    Fault_Reporting_ProiritizationDF = Fault_Reporting_Proiritization_df_create_data(Fault_Reporting_ProiritizationDF)
     Summer_LoadDF = summer_load_df_create_data(Summer_LoadDF, AIStationDF)
     AIStationDF = station_df_create_data(AIStationDF, PowerTransformerDF, Outdoor_BreakerDF)
     PowerTransformerDF = transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF, AIStationDF)
-    Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF)
-    RelayDataDF = relay_df_create_data(RelayDataDF, PowerTransformerDF)
+    Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
+    RelayDataDF = relay_df_create_data(RelayDataDF)
+
+
     # Select columns to keep
     AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
                                'XFMER_Count', 'Mean_Feeder_Age', 'Single_Phase_Station'
