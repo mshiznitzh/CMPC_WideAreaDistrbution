@@ -152,6 +152,12 @@ def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_Lo
 
     return PowerTransformerDF
 
+def add_Risk_to_Stationdf(StationDF, PowerTransformerDF):
+    maxDF = PowerTransformerDF.groupby(['Station_Name'], as_index=False).agg(
+        XFMER_Count=('Risk_Index_(Normalized)', pd.Series.max))
+    StationDF = pd.merge(StationDF, maxDF, on='Station_Name', how='left')
+
+    return StationDF
 
 def station_df_create_data(StationDF, PowerTransformerDF, Outdoor_BreakerDF):
     StationDF['Age'] = (dt.date.today() - StationDF['IN_SERVICE_DATE'].dt.date) / 365
@@ -160,6 +166,8 @@ def station_df_create_data(StationDF, PowerTransformerDF, Outdoor_BreakerDF):
     countDF = PowerTransformerDF.groupby(['Station_Name'], as_index=False).agg(
         XFMER_Count=('Asset_Number', pd.Series.count))
     StationDF = pd.merge(StationDF, countDF, on='Station_Name', how='left')
+
+
 
     # Build indication for 1 PH Stations
     Single_Phase_Stations_DF = PowerTransformerDF[PowerTransformerDF['NUM_PH'] == 1]
@@ -369,6 +377,7 @@ def main():
                                                     Winter_LoadDF, AIStationDF)
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
     RelayDataDF = relay_df_create_data(RelayDataDF)
+    add_Risk_to_Stationdf(AIStationDF, PowerTransformerDF)
 
     # Select columns to keep
     AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
@@ -391,9 +400,9 @@ def main():
     AIStationDF.to_excel(writer, sheet_name='Stations', index=False)
     PowerTransformerDF.to_excel(writer, sheet_name='Transformers', index=False)
     Outdoor_BreakerDF.to_excel(writer, sheet_name='Outdoor Breakers', index=False)
-    RelayDataDF.to_excel(writer, sheet_name='Relay', index=True)
-    Summer_LoadDF.to_excel(writer, sheet_name='Summer_Load', index=True)
-    Winter_LoadDF.to_excel(writer, sheet_name='Winter_Load', index=True)
+    RelayDataDF.to_excel(writer, sheet_name='Relay', index=False)
+    Summer_LoadDF.to_excel(writer, sheet_name='Summer Load', index=False)
+    Winter_LoadDF.to_excel(writer, sheet_name='Winter Load', index=False)
     # Close the Pandas Excel writer and output the Excel file.
     writer.save()
 
