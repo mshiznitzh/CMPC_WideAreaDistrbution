@@ -152,12 +152,15 @@ def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_Lo
 
     return PowerTransformerDF
 
+
 def add_Risk_to_Stationdf(StationDF, PowerTransformerDF):
     maxDF = PowerTransformerDF.groupby(['Station_Name'], as_index=False).agg(
-        XFMER_Count=('Risk_Index_(Normalized)', pd.Series.max))
+        Max_Risk_Index_at_Station=('Risk_Index_(Normalized)', pd.Series.max))
     StationDF = pd.merge(StationDF, maxDF, on='Station_Name', how='left')
 
+    # StationDF = StationDF.rename(columns={'Risk_Index_(Normalized)': 'Max_Risk_Index_at_Station'})
     return StationDF
+
 
 def station_df_create_data(StationDF, PowerTransformerDF, Outdoor_BreakerDF):
     StationDF['Age'] = (dt.date.today() - StationDF['IN_SERVICE_DATE'].dt.date) / 365
@@ -167,13 +170,14 @@ def station_df_create_data(StationDF, PowerTransformerDF, Outdoor_BreakerDF):
         XFMER_Count=('Asset_Number', pd.Series.count))
     StationDF = pd.merge(StationDF, countDF, on='Station_Name', how='left')
 
-
-
     # Build indication for 1 PH Stations
+
     Single_Phase_Stations_DF = PowerTransformerDF[PowerTransformerDF['NUM_PH'] == 1]
     Single_Phase_Stations_DF['Single_Phase_Station'] = True
     StationDF = pd.merge(StationDF, Single_Phase_Stations_DF[['Station_Name', 'Single_Phase_Station']],
                          on='Station_Name', how='left')
+    StationDF['Single_Phase_Station'] = np.where(StationDF['Single_Phase_Station'].isnull(), False,
+                                                 StationDF['Single_Phase_Station'])
 
     # Get a Avg Age of breakers at station
     Outdoor_BreakerDF['Age'] = (dt.date.today() - Outdoor_BreakerDF['Manufacture_Date'].dt.date) / 365
@@ -377,11 +381,11 @@ def main():
                                                     Winter_LoadDF, AIStationDF)
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
     RelayDataDF = relay_df_create_data(RelayDataDF)
-    add_Risk_to_Stationdf(AIStationDF, PowerTransformerDF)
+    AIStationDF = add_Risk_to_Stationdf(AIStationDF, PowerTransformerDF)
 
     # Select columns to keep
     AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
-                               'XFMER_Count', 'Mean_Feeder_Age', 'Single_Phase_Station'
+                               'XFMER_Count','Max_Risk_Index_at_Station', 'Mean_Feeder_Age', 'Single_Phase_Station'
                                ]]
 
     PowerTransformerDF = PowerTransformerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code',
