@@ -17,6 +17,7 @@ import os
 import datetime as dt
 import numpy as np
 from multiprocessing import Pool
+import math
 
 
 # OS Functions
@@ -101,7 +102,7 @@ def transformer_df_cleanup(TransformerDF):
     return TransformerDF
 
 
-def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF, AIStationDF):
+def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF, Winter_LoadDF, AIStationDF):
     PowerTransformerDF = PowerTransformerDF[PowerTransformerDF['Station_Name'].isin(list(AIStationDF['Station_Name']))]
     PowerTransformerDF['Age'] = (dt.date.today() - PowerTransformerDF['Manufacture_Date'].dt.date) / 365
     Transformer_RiskDF = Transformer_RiskDF.rename(columns={"Asset": "Maximo_Code"})
@@ -116,11 +117,39 @@ def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_Lo
                                                                      'Projected_Summer_Load_2025']], on='Maximo_Code',
                                   how='left')
 
+    PowerTransformerDF = pd.merge(PowerTransformerDF, Winter_LoadDF[['Maximo_Code', 'Projected_Winter_Load_2020',
+                                                                     'Projected_Winter_Load_2021',
+                                                                     'Projected_Winter_Load_2022',
+                                                                     'Projected_Winter_Load_2023',
+                                                                     'Projected_Winter_Load_2024',
+                                                                     'Projected_Winter_Load_2025']], on='Maximo_Code',
+                                  how='left')
+
+    for item in ['Projected_Summer_Load_2021', 'Projected_Summer_Load_2022', 'Projected_Summer_Load_2023',
+                 'Projected_Summer_Load_2024', 'Projected_Summer_Load_2025', 'Projected_Winter_Load_2021',
+                 'Projected_Winter_Load_2022', 'Projected_Winter_Load_2023',
+                 'Projected_Winter_Load_2024', 'Projected_Winter_Load_2025']:
+        PowerTransformerDF[item] = np.where(PowerTransformerDF['NUM_PH'] == 1, PowerTransformerDF[item] / 3,
+                                            PowerTransformerDF[item])
+
     PowerTransformerDF['Max_Projected_Summer_Load'] = PowerTransformerDF[['Projected_Summer_Load_2021',
                                                                           'Projected_Summer_Load_2022',
                                                                           'Projected_Summer_Load_2023',
                                                                           'Projected_Summer_Load_2024',
                                                                           'Projected_Summer_Load_2025']].max(axis=1)
+
+    PowerTransformerDF['Max_Projected_Winter_Load'] = PowerTransformerDF[['Projected_Winter_Load_2021',
+                                                                          'Projected_Winter_Load_2022',
+                                                                          'Projected_Winter_Load_2023',
+                                                                          'Projected_Winter_Load_2024',
+                                                                          'Projected_Winter_Load_2025']].max(axis=1)
+
+    PowerTransformerDF['Max_MVA_Exceeded'] = False
+    PowerTransformerDF['Max_MVA_Exceeded'] = np.where(
+        (PowerTransformerDF['Max_Projected_Summer_Load'] > PowerTransformerDF['MAXIMUM_MVA']) |
+        (PowerTransformerDF['Max_Projected_Winter_Load'] > PowerTransformerDF['MAXIMUM_MVA']), True,
+        PowerTransformerDF['Max_MVA_Exceeded'])
+
     return PowerTransformerDF
 
 
@@ -167,8 +196,8 @@ def breaker_df_cleanup(BreakerDF):
 
 def breaker_df_create_data(BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF):
     BreakerDF = pd.merge(BreakerDF,
-                         Fault_Reporting_ProiritizationDF[['Maximo_Asset', 'DOC_Fault_Reporting_Prioritization']],
-                         left_on='Maximo_Code', right_on='Maximo_Asset', how='left')
+                         Fault_Reporting_ProiritizationDF[['Maximo_Code', 'DOC_Fault_Reporting_Prioritization']],
+                         how='left', on='Maximo_Code')
 
     stations_with_Single_BankDF = PowerTransformerDF[
         PowerTransformerDF['Station_Name'].map(PowerTransformerDF['Station_Name'].value_counts()) == 1]
@@ -251,12 +280,36 @@ def summer_load_df_create_data(Summer_LoadDF, AIStationDF):
 
 def Fault_Reporting_Proiritization_df_cleanup(FRPdf):
     '''Clean up will rename the 9th coloumn to DOC_Fault_Reporting_Prioritization.  Function returns FRPdf'''
-    FRPdf = FRPdf.rename(columns={ FRPdf.columns[9]: "DOC_Fault_Reporting_Prioritization" })
+    logger.info("Fault_Reporting_Proiritization_df_cleanup Starting")
+    # logger.info("DataFrame has "+ FRPdf['SUBSTATION_NAME'].str.len() +" rows")
+    FRPdf = FRPdf.rename(columns={FRPdf.columns[9]: 'DOC_Fault_Reporting_Prioritization'})
+    FRPdf['DOC_Fault_Reporting_Prioritization'] = np.where(FRPdf['DOC_Fault_Reporting_Prioritization'].isnull(),
+                                                           FRPdf['Feeder_Ranking'],
+                                                           FRPdf['DOC_Fault_Reporting_Prioritization'])
+
+    FRPdf['DOC_Fault_Reporting_Prioritization'] = np.where(FRPdf['DOC_Fault_Reporting_Prioritization'].isnull(),
+                                                           FRPdf['PRIORITY:_HIGH,MEDIUM,LOW'],
+                                                           FRPdf['DOC_Fault_Reporting_Prioritization'])
+
+    FRPdf['DOC_Fault_Reporting_Prioritization'] = np.where(FRPdf['DOC_Fault_Reporting_Prioritization'].isnull(),
+                                                           FRPdf['HIIGH-MEDIUM-LOW'],
+                                                           FRPdf['DOC_Fault_Reporting_Prioritization'])
+
+    FRPdf['DOC_Fault_Reporting_Prioritization'] = np.where(FRPdf['DOC_Fault_Reporting_Prioritization'].isnull(),
+                                                           FRPdf['Priority'],
+                                                           FRPdf['DOC_Fault_Reporting_Prioritization'])
+
+    FRPdf['DOC_Fault_Reporting_Prioritization'] = np.where(FRPdf['FAULT_REPORTING'] == 'Y',
+                                                           'Fault Reporting Enabled',
+                                                           FRPdf['DOC_Fault_Reporting_Prioritization'])
     return FRPdf
 
 
 def Fault_Reporting_Proiritization_df_create_data(FRPdf):
-    FRPdf['Maximo_Asset'] = FRPdf['FEEDER_ID'].str.slice(start=0, stop=5) + '-' +'0' + FRPdf['FEEDER_ID'].str.slice(start=5)
+    FRPdf['Maximo_Code'] = FRPdf['FEEDER_ID'].str.slice(start=0, stop=5) + '-' + '0' + FRPdf['FEEDER_ID'].str.slice(
+        start=5)
+    FRPdf['Maximo_Code'] = FRPdf['Maximo_Code'].str.strip()
+
     return FRPdf
 
 
@@ -273,12 +326,14 @@ def main():
     Metalclad_Switchgear_filename = 'Metalclad Switchgear Asset aa554c63f.xlsx'
     Transformer_Risk_filename = 'Oncor Transformer Asset Health Export - Risk Matrix - System.csv'
     Summer_Load_Filename = '2021 Load Projections(4-10)Summer - Clean.xlsx'
+    Winter_Load_Filename = '2021 Load Projections(4-10)Winter - Clean.xlsx'
     Fault_Reporting_Proiritization_filename = 'Fault Reporting Prioritization_EDOC.XLSX'
 
     Excel_Files = [Station_filename, Transformer_filename, Breaker_filename, Relay_filename,
-                   Metalclad_Switchgear_filename, Summer_Load_Filename, Fault_Reporting_Proiritization_filename]
+                   Metalclad_Switchgear_filename, Summer_Load_Filename, Winter_Load_Filename,
+                   Fault_Reporting_Proiritization_filename]
 
-    pool = Pool(processes=8)
+    pool = Pool(processes=1)
 
     # Import Excel files
     df_list = pool.map(Excel_to_Pandas, Excel_Files)
@@ -298,14 +353,20 @@ def main():
     RelayDataDF = relay_df_cleanup(df_list[next(i for i, t in enumerate(df_list) if t[0] == Relay_filename)][1])
     Summer_LoadDF = summer_load_df_cleanup(
         df_list[next(i for i, t in enumerate(df_list) if t[0] == Summer_Load_Filename)][1])
+
+    Winter_LoadDF = summer_load_df_cleanup(
+        df_list[next(i for i, t in enumerate(df_list) if t[0] == Winter_Load_Filename)][1])
+
     Fault_Reporting_ProiritizationDF = Fault_Reporting_Proiritization_df_cleanup(
         df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1])
 
     # Create new date in the dataframes
     Fault_Reporting_ProiritizationDF = Fault_Reporting_Proiritization_df_create_data(Fault_Reporting_ProiritizationDF)
     Summer_LoadDF = summer_load_df_create_data(Summer_LoadDF, AIStationDF)
+    Winter_LoadDF = summer_load_df_create_data(Winter_LoadDF, AIStationDF)
     AIStationDF = station_df_create_data(AIStationDF, PowerTransformerDF, Outdoor_BreakerDF)
-    PowerTransformerDF = transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF, AIStationDF)
+    PowerTransformerDF = transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF,
+                                                    Winter_LoadDF, AIStationDF)
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
     RelayDataDF = relay_df_create_data(RelayDataDF)
 
@@ -316,7 +377,8 @@ def main():
 
     PowerTransformerDF = PowerTransformerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code',
                                              'Age', 'MAXIMUM_MVA', 'LV_NOM_KV', 'Risk_Index_(Normalized)',
-                                             'Max_Projected_Summer_Load']]
+                                             'Max_Projected_Summer_Load', 'Max_Projected_Winter_Load',
+                                             'Max_MVA_Exceeded']]
 
     Outdoor_BreakerDF = Outdoor_BreakerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code', 'Age',
                                            'BKR_SERVICE', 'SELF_CONTAINED', 'Manufacturer', 'BKR_MECH_MOD',
@@ -341,7 +403,7 @@ if __name__ == '__main__':
     logger = logging.getLogger('root')
     FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
     logging.basicConfig(format=FORMAT)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.CRITICAL)
 
     main()
 
