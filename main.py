@@ -17,7 +17,7 @@ import os
 import datetime as dt
 import numpy as np
 from multiprocessing import Pool
-import math
+import FRP
 
 
 # OS Functions
@@ -296,39 +296,7 @@ def summer_load_df_create_data(Summer_LoadDF, AIStationDF):
     return Summer_LoadDF
 
 
-def Fault_Reporting_Proiritization_df_cleanup(FRPdf):
-    '''Clean up will rename the 9th coloumn to DOC_Fault_Reporting_Prioritization.  Function returns FRPdf'''
-    logger.info("Fault_Reporting_Proiritization_df_cleanup Starting")
-    # logger.info("DataFrame has "+ FRPdf['SUBSTATION_NAME'].str.len() +" rows")
-    FRPdf = FRPdf.rename(columns={FRPdf.columns[9]: 'DOC_Fault_Reporting_Prioritization'})
-    FRPdf['DOC_Fault_Reporting_Prioritization'] = np.where(FRPdf['DOC_Fault_Reporting_Prioritization'].isnull(),
-                                                           FRPdf['Feeder_Ranking'],
-                                                           FRPdf['DOC_Fault_Reporting_Prioritization'])
 
-    FRPdf['DOC_Fault_Reporting_Prioritization'] = np.where(FRPdf['DOC_Fault_Reporting_Prioritization'].isnull(),
-                                                           FRPdf['PRIORITY:_HIGH,MEDIUM,LOW'],
-                                                           FRPdf['DOC_Fault_Reporting_Prioritization'])
-
-    FRPdf['DOC_Fault_Reporting_Prioritization'] = np.where(FRPdf['DOC_Fault_Reporting_Prioritization'].isnull(),
-                                                           FRPdf['HIIGH-MEDIUM-LOW'],
-                                                           FRPdf['DOC_Fault_Reporting_Prioritization'])
-
-    FRPdf['DOC_Fault_Reporting_Prioritization'] = np.where(FRPdf['DOC_Fault_Reporting_Prioritization'].isnull(),
-                                                           FRPdf['Priority'],
-                                                           FRPdf['DOC_Fault_Reporting_Prioritization'])
-
-    FRPdf['DOC_Fault_Reporting_Prioritization'] = np.where(FRPdf['FAULT_REPORTING'] == 'Y',
-                                                           'Fault Reporting Enabled',
-                                                           FRPdf['DOC_Fault_Reporting_Prioritization'])
-    return FRPdf
-
-
-def Fault_Reporting_Proiritization_df_create_data(FRPdf):
-    FRPdf['Maximo_Code'] = FRPdf['FEEDER_ID'].str.slice(start=0, stop=5) + '-' + '0' + FRPdf['FEEDER_ID'].str.slice(
-        start=5)
-    FRPdf['Maximo_Code'] = FRPdf['Maximo_Code'].str.strip()
-
-    return FRPdf
 
 
 def main():
@@ -376,11 +344,11 @@ def main():
     Winter_LoadDF = summer_load_df_cleanup(
         df_list[next(i for i, t in enumerate(df_list) if t[0] == Winter_Load_Filename)][1])
 
-    Fault_Reporting_ProiritizationDF = Fault_Reporting_Proiritization_df_cleanup(
+    Fault_Reporting_ProiritizationDF = FRP.Fault_Reporting_Proiritization_df_cleanup(
         df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1])
 
     # Create new date in the dataframes
-    Fault_Reporting_ProiritizationDF = Fault_Reporting_Proiritization_df_create_data(Fault_Reporting_ProiritizationDF)
+    Fault_Reporting_ProiritizationDF = FRP.Fault_Reporting_Proiritization_df_create_data(Fault_Reporting_ProiritizationDF)
     Summer_LoadDF = summer_load_df_create_data(Summer_LoadDF, AIStationDF)
     Winter_LoadDF = summer_load_df_create_data(Winter_LoadDF, AIStationDF)
     AIStationDF = station_df_create_data(AIStationDF, PowerTransformerDF, Outdoor_BreakerDF)
