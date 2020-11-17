@@ -157,10 +157,16 @@ def add_Risk_to_Stationdf(StationDF, PowerTransformerDF):
     maxDF = PowerTransformerDF.groupby(['Station_Name'], as_index=False).agg(
         Max_Risk_Index_at_Station=('Risk_Index_(Normalized)', pd.Series.max))
     StationDF = pd.merge(StationDF, maxDF, on='Station_Name', how='left')
-
-    # StationDF = StationDF.rename(columns={'Risk_Index_(Normalized)': 'Max_Risk_Index_at_Station'})
+    StationDF.drop_duplicates(inplace=True)
     return StationDF
 
+
+def add_MVA_Exceeded_Stationdf(StationDF, PowerTransformerDF):
+    Exceededdf = PowerTransformerDF[PowerTransformerDF['Max_MVA_Exceeded']]
+    StationDF = pd.merge(StationDF, Exceededdf[['Station_Name', 'Max_MVA_Exceeded']], how='left', on='Station_Name')
+    StationDF['Max_MVA_Exceeded'] = np.where(StationDF['Max_MVA_Exceeded'].isnull(), False, StationDF['Max_MVA_Exceeded'])
+    StationDF.drop_duplicates(inplace=True)
+    return StationDF
 
 def station_df_create_data(StationDF, PowerTransformerDF, Outdoor_BreakerDF):
     StationDF['Age'] = (dt.date.today() - StationDF['IN_SERVICE_DATE'].dt.date) / 365
@@ -340,10 +346,11 @@ def main():
     Summer_Load_Filename = '2021 Load Projections(4-10)Summer - Clean.xlsx'
     Winter_Load_Filename = '2021 Load Projections(4-10)Winter - Clean.xlsx'
     Fault_Reporting_Proiritization_filename = 'Fault Reporting Prioritization_EDOC.XLSX'
+    Fault_Reporting_Proiritization_filename1 = 'WDOC Fault Recording Relay Feeder List with Priority v1.1.xlsx'
 
     Excel_Files = [Station_filename, Transformer_filename, Breaker_filename, Relay_filename,
                    Metalclad_Switchgear_filename, Summer_Load_Filename, Winter_Load_Filename,
-                   Fault_Reporting_Proiritization_filename]
+                   Fault_Reporting_Proiritization_filename, Fault_Reporting_Proiritization_filename1]
 
     pool = Pool(processes=8)
 
@@ -382,11 +389,13 @@ def main():
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
     RelayDataDF = relay_df_create_data(RelayDataDF)
     AIStationDF = add_Risk_to_Stationdf(AIStationDF, PowerTransformerDF)
+    AIStationDF = add_MVA_Exceeded_Stationdf(AIStationDF, PowerTransformerDF)
 
     # Select columns to keep
-    AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
-                               'XFMER_Count','Max_Risk_Index_at_Station', 'Mean_Feeder_Age', 'Single_Phase_Station'
-                               ]]
+    AIStationDF = AIStationDF[
+        ['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age', 'Single_Phase_Station',
+         'XFMER_Count', 'Max_Risk_Index_at_Station', 'Max_MVA_Exceeded', 'Mean_Feeder_Age'
+         ]]
 
     PowerTransformerDF = PowerTransformerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code',
                                              'Age', 'MAXIMUM_MVA', 'LV_NOM_KV', 'Risk_Index_(Normalized)',
