@@ -333,7 +333,7 @@ def main():
                    Metalclad_Switchgear_filename, Summer_Load_Filename, Winter_Load_Filename,
                    Fault_Reporting_Proiritization_filename]
 
-    pool = Pool(processes=1)
+    pool = Pool(processes=8)
 
     # Import Excel files
     df_list = pool.map(Excel_to_Pandas, Excel_Files)
@@ -391,7 +391,9 @@ def main():
     AIStationDF.to_excel(writer, sheet_name='Stations', index=False)
     PowerTransformerDF.to_excel(writer, sheet_name='Transformers', index=False)
     Outdoor_BreakerDF.to_excel(writer, sheet_name='Outdoor Breakers', index=False)
-    Summer_LoadDF.to_excel(writer, sheet_name='Load', index=True)
+    RelayDataDF.to_excel(writer, sheet_name='Relay', index=True)
+    Summer_LoadDF.to_excel(writer, sheet_name='Summer_Load', index=True)
+    Winter_LoadDF.to_excel(writer, sheet_name='Winter_Load', index=True)
     # Close the Pandas Excel writer and output the Excel file.
     writer.save()
 
