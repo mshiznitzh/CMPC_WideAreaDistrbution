@@ -164,9 +164,11 @@ def add_Risk_to_Stationdf(StationDF, PowerTransformerDF):
 def add_MVA_Exceeded_Stationdf(StationDF, PowerTransformerDF):
     Exceededdf = PowerTransformerDF[PowerTransformerDF['Max_MVA_Exceeded']]
     StationDF = pd.merge(StationDF, Exceededdf[['Station_Name', 'Max_MVA_Exceeded']], how='left', on='Station_Name')
-    StationDF['Max_MVA_Exceeded'] = np.where(StationDF['Max_MVA_Exceeded'].isnull(), False, StationDF['Max_MVA_Exceeded'])
+    StationDF['Max_MVA_Exceeded'] = np.where(StationDF['Max_MVA_Exceeded'].isnull(), False,
+                                             StationDF['Max_MVA_Exceeded'])
     StationDF.drop_duplicates(inplace=True)
     return StationDF
+
 
 def station_df_create_data(StationDF, PowerTransformerDF, Outdoor_BreakerDF):
     StationDF['Age'] = (dt.date.today() - StationDF['IN_SERVICE_DATE'].dt.date) / 365
@@ -203,12 +205,6 @@ def breaker_df_cleanup(BreakerDF):
     BreakerDF['SELF_CONTAINED'].replace('NON SELF-CONTAINED', False, inplace=True)
     BreakerDF['SELF_CONTAINED'].replace('N', False, inplace=True)
 
-    BreakerDF['Associated_XFMR'] = np.nan
-
-    BreakerDF['Associated_XFMR'] = np.where((BreakerDF['Maximo_Code'].str.match(r'^.{9}1') &
-                                             (BreakerDF['BKR_SERVICE'].str.match('FEEDER')))
-                                            , '1', BreakerDF['Associated_XFMR'])
-
     return BreakerDF
 
 
@@ -222,10 +218,6 @@ def breaker_df_create_data(BreakerDF, PowerTransformerDF, Fault_Reporting_Proiri
 
     Single_Bank = list(stations_with_Single_BankDF['Station_Name'])
 
-    # BreakerDF['Associated_XFMR'] = np.where((BreakerDF['Station_Name'].isin(Single_Bank)  &
-    #                                         (BreakerDF['BKR_SERVICE'].str.match('FEEDER')))
-    #                                       ,'1', BreakerDF['Associated_XFMR'] )
-
     return BreakerDF
 
 
@@ -234,9 +226,13 @@ def relay_df_cleanup(relaydf):
 
 
 def relay_df_create_data(relaydf):
-    relaydf['Maximo_Asset_Protected'] = relaydf['LOCATION'].str.slice(start=0, stop=5) + '-' + relaydf[
-        'LOCATION'].str.slice(start=10)
+    relaydf['Maximo_Asset_Protected_Station'] = relaydf['LOCATION'].str.slice(start=0, stop=5)
+    'LOCATION'].str.slice(start=10)
+    relaydf['Maximo_Asset_Protected_Device_Type'] = relaydf['LOCATION'].str.slice(start=10, stop=3)
+    relaydf['Maximo_Asset_Protected_Device_Num'] = relaydf['LOCATION'].str.slice(start=13)
 
+    relaydf['Maximo_Asset_Protected'] = np.where(relaydf['Maximo_Asset_Protected_Device_Type'] == 'BKR', relaydf[
+    'Maximo_Asset_Protected_Station'] + '-0' +, relaydf['Maximo_Asset_Protected_Device_Num'])
     return relaydf
 
 
@@ -296,7 +292,24 @@ def summer_load_df_create_data(Summer_LoadDF, AIStationDF):
     return Summer_LoadDF
 
 
+def add_Relay_Stationdf(AIStationDF, RelayDataDF, Outdoor_BreakerDF):
+    RelayDataDF_351_feeders = RelayDataDF[(RelayDataDF['MODEL'].str.contains('351')) &
+                                          RelayDataDF['MFG'].str.match('SEL')]
+    RelayDataDF_351_feeders['SUB_4_Protection'] = True
+    Outdoor_BreakerDF = pd.merge(Outdoor_BreakerDF,
+                                 RelayDataDF_351_feeders[['Maximo_Asset_Protected', 'SUB_4_Protection']],
+                                 left_on='Maximo_Code', right_on='Maximo_Asset_Protected', how='left')
 
+    return Outdoor_BreakerDF
+
+
+def Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF):
+    Associated_Breaker_DetailsDF = Associated_Breaker_DetailsDF.rename(
+        columns={"Maximo_Code": "Associated_XFMR", "Associated_Breaker_Maximo_Code": "Maximo_Code"})
+    Outdoor_BreakerDF = pd.merge(Outdoor_BreakerDF, Associated_Breaker_DetailsDF[['Maximo_Code', 'Associated_XFMR']],
+                                 on='Maximo_Code', how='left')
+
+    return Outdoor_BreakerDF
 
 
 def main():
@@ -322,8 +335,9 @@ def main():
                    Fault_Reporting_Proiritization_filename, Fault_Reporting_Proiritization_filename1]
 
     pool = Pool(processes=8)
-    Associated_Breaker_DetailsDF = Excel_to_Pandas(Associated_Breaker_Details_filename, check_update=False, SheetName='Associated Breaker Details')
-
+    Associated_Breaker_DetailsDF = Excel_to_Pandas(Associated_Breaker_Details_filename, check_update=False,
+                                                   SheetName='Associated Breaker Details')
+    Associated_Breaker_DetailsDF = Associated_Breaker_DetailsDF[1]
     # Import Excel files
     df_list = pool.map(Excel_to_Pandas, Excel_Files)
 
@@ -350,16 +364,19 @@ def main():
         df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1])
 
     # Create new date in the dataframes
-    Fault_Reporting_ProiritizationDF = FRP.Fault_Reporting_Proiritization_df_create_data(Fault_Reporting_ProiritizationDF)
+    Fault_Reporting_ProiritizationDF = FRP.Fault_Reporting_Proiritization_df_create_data(
+        Fault_Reporting_ProiritizationDF)
     Summer_LoadDF = summer_load_df_create_data(Summer_LoadDF, AIStationDF)
     Winter_LoadDF = summer_load_df_create_data(Winter_LoadDF, AIStationDF)
     AIStationDF = station_df_create_data(AIStationDF, PowerTransformerDF, Outdoor_BreakerDF)
     PowerTransformerDF = transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF,
                                                     Winter_LoadDF, AIStationDF)
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
+    Outdoor_BreakerDF = Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF)
     RelayDataDF = relay_df_create_data(RelayDataDF)
     AIStationDF = add_Risk_to_Stationdf(AIStationDF, PowerTransformerDF)
     AIStationDF = add_MVA_Exceeded_Stationdf(AIStationDF, PowerTransformerDF)
+    Outdoor_BreakerDF = add_Relay_Stationdf(AIStationDF, RelayDataDF, Outdoor_BreakerDF)
 
     # Select columns to keep
     AIStationDF = AIStationDF[
@@ -374,7 +391,8 @@ def main():
 
     Outdoor_BreakerDF = Outdoor_BreakerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code', 'Age',
                                            'BKR_SERVICE', 'SELF_CONTAINED', 'Manufacturer', 'BKR_MECH_MOD',
-                                           'BKR_INTERR', 'Associated_XFMR', 'DOC_Fault_Reporting_Prioritization']]
+                                           'BKR_INTERR', 'Associated_XFMR', 'DOC_Fault_Reporting_Prioritization',
+                                           'SUB_4_Protection']]
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     writer = pd.ExcelWriter('CMPC_WideArea_AIS.xlsx', engine='xlsxwriter')
