@@ -315,12 +315,14 @@ def main():
     Winter_Load_Filename = '2021 Load Projections(4-10)Winter - Clean.xlsx'
     Fault_Reporting_Proiritization_filename = 'Fault Reporting Prioritization_EDOC.XLSX'
     Fault_Reporting_Proiritization_filename1 = 'WDOC Fault Recording Relay Feeder List with Priority v1.1.xlsx'
+    Associated_Breaker_Details_filename = 'Transformer Health - Analysis.xlsx'
 
     Excel_Files = [Station_filename, Transformer_filename, Breaker_filename, Relay_filename,
                    Metalclad_Switchgear_filename, Summer_Load_Filename, Winter_Load_Filename,
                    Fault_Reporting_Proiritization_filename, Fault_Reporting_Proiritization_filename1]
 
     pool = Pool(processes=8)
+    Associated_Breaker_DetailsDF = Excel_to_Pandas(Associated_Breaker_Details_filename, check_update=False, SheetName='Associated Breaker Details')
 
     # Import Excel files
     df_list = pool.map(Excel_to_Pandas, Excel_Files)
