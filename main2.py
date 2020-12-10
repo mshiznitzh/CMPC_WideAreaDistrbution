@@ -23,7 +23,7 @@ from itertools import combinations
 from itertools import zip_longest
 import smart_excel_to_pandas.smart_excel_to_pandas
 import PowerTransformer
-
+import Outdoor_Breaker
 
 # OS Functions
 
@@ -348,36 +348,9 @@ def summer_load_df_create_data(Summer_LoadDF, AIStationDF):
     return Summer_LoadDF
 
 
-def add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
-    RelayDataDF['Feeder_Protection'] = 'Non Sub'
-    RelayDataDF['Feeder_Protection'] = np.where(RelayDataDF['MODEL'].str.match('DPU') &
-                                                RelayDataDF['MFG'].str.contains('ABB'), 'SUB 1',
-                                                RelayDataDF['Feeder_Protection'])
-
-    RelayDataDF['Feeder_Protection'] = np.where(RelayDataDF['MODEL'].str.match('DPU-2000R') &
-                                                RelayDataDF['MFG'].str.contains('ABB'), 'SUB 2/3',
-                                                RelayDataDF['Feeder_Protection'])
-
-    RelayDataDF['Feeder_Protection'] = np.where(RelayDataDF['MODEL'].str.contains('351') &
-                                                RelayDataDF['MFG'].str.match('SEL'), 'SUB 4',
-                                                RelayDataDF['Feeder_Protection'])
-
-    RelayDataDF['Feeder_Protection'] = np.where(RelayDataDF['MODEL'].str.contains('551') &
-                                                RelayDataDF['MFG'].str.match('SEL'), 'SUB 4',
-                                                RelayDataDF['Feeder_Protection'])
 
 
-    list = ['SUB 1', 'SUB 2/3', 'SUB 4', 'Non Sub']
 
-    df = RelayDataDF[RelayDataDF['Feeder_Protection'].isin(list)]
-
-    Outdoor_BreakerDF = pd.merge(Outdoor_BreakerDF,
-                                 df[['Maximo_Asset_Protected', 'Feeder_Protection']],
-                                 left_on='Maximo_Code', right_on='Maximo_Asset_Protected', how='left')
-
-    Outdoor_BreakerDF = Outdoor_BreakerDF.sort_values(by=['Feeder_Protection']).drop_duplicates(subset=['Maximo_Code'], keep=("last"))
-
-    return Outdoor_BreakerDF
 
 
 
@@ -667,7 +640,7 @@ def main():
     RelayDataDF = relay_df_create_data(RelayDataDF, PowerTransformerDF, Outdoor_BreakerDF)
     AIStationDF = add_Risk_to_Stationdf(AIStationDF, PowerTransformerDF)
     AIStationDF = add_MVA_Exceeded_Stationdf(AIStationDF, PowerTransformerDF)
-    Outdoor_BreakerDF = add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
+    Outdoor_BreakerDF = Outdoor_Breaker.add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
     PowerTransformerDF = Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF)
     AIStationDF = Add_Fused_Bank_to_Stationdf(AIStationDF, PowerTransformerDF)
     PowerTransformerDF = PowerTransformer.Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF)
@@ -706,7 +679,7 @@ def main():
     Outdoor_BreakerDF = Outdoor_BreakerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code', 'Age',
                                            'BKR_SERVICE', 'SELF_CONTAINED', 'Manufacturer', 'BKR_MECH_MOD',
                                            'BKR_INTERR', 'Associated_XFMR', 'DOC_Fault_Reporting_Prioritization',
-                                           'Feeder_Protection']]
+                                           'Feeder_Protection', 'Feeder_Protection2']]
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     writer = pd.ExcelWriter('CMPC_WideArea_AIS.xlsx', engine='xlsxwriter')
