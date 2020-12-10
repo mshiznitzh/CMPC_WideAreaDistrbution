@@ -641,6 +641,7 @@ def main():
     AIStationDF = add_Risk_to_Stationdf(AIStationDF, PowerTransformerDF)
     AIStationDF = add_MVA_Exceeded_Stationdf(AIStationDF, PowerTransformerDF)
     Outdoor_BreakerDF = Outdoor_Breaker.add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
+    Outdoor_BreakerDF = Outdoor_Breaker.add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
     PowerTransformerDF = Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF)
     AIStationDF = Add_Fused_Bank_to_Stationdf(AIStationDF, PowerTransformerDF)
     PowerTransformerDF = PowerTransformer.Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF)

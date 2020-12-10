@@ -37,16 +37,16 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
 
     #SUB IV
     df = RelayDataDF.query(
-        'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("587")')
+        'PROT_TYPE.str.match("DISTRIBUTION FEEDER") & MFG.str.match("SEL") & MODEL.str.contains("351")')
 
-    df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) == 2)
-    # df2 = RelayDataDF.query(
-    #   'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("501")')
 
-    # retrodf = dual587df[dual587df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
+    df2 = RelayDataDF.query(
+       'PROT_TYPE.str.match("DISTRIBUTION FEEDER") & MFG.str.match("SEL") & MODEL.str.contains("551")')
 
-    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
-        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'Dual 587 Retrofit',
-        PowerTransformerDF['Xfmer_Diff_Protection'])
+    df = df[df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
+
+    Outdoor_BreakerDF['Feeder_Protection2'] = np.where(
+        Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB IV',
+        Outdoor_BreakerDF['Feeder_Protection2'])
 
     return Outdoor_BreakerDF
