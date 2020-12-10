@@ -227,12 +227,11 @@ def relay_df_cleanup(relaydf):
 
 def relay_df_create_data(relaydf):
     relaydf['Maximo_Asset_Protected_Station'] = relaydf['LOCATION'].str.slice(start=0, stop=5)
-    'LOCATION'].str.slice(start=10)
     relaydf['Maximo_Asset_Protected_Device_Type'] = relaydf['LOCATION'].str.slice(start=10, stop=3)
     relaydf['Maximo_Asset_Protected_Device_Num'] = relaydf['LOCATION'].str.slice(start=13)
 
     relaydf['Maximo_Asset_Protected'] = np.where(relaydf['Maximo_Asset_Protected_Device_Type'] == 'BKR', relaydf[
-    'Maximo_Asset_Protected_Station'] + '-0' +, relaydf['Maximo_Asset_Protected_Device_Num'])
+    'Maximo_Asset_Protected_Station'] + '-0', relaydf['Maximo_Asset_Protected_Device_Num'])
     return relaydf
 
 
@@ -334,7 +333,7 @@ def main():
                    Metalclad_Switchgear_filename, Summer_Load_Filename, Winter_Load_Filename,
                    Fault_Reporting_Proiritization_filename, Fault_Reporting_Proiritization_filename1]
 
-    pool = Pool(processes=8)
+    pool = Pool(processes=15)
     Associated_Breaker_DetailsDF = Excel_to_Pandas(Associated_Breaker_Details_filename, check_update=False,
                                                    SheetName='Associated Breaker Details')
     Associated_Breaker_DetailsDF = Associated_Breaker_DetailsDF[1]
@@ -412,10 +411,10 @@ def main():
 if __name__ == '__main__':
     """ This is executed when run from the command line """
     # Setup Logging
-    logger = logging.getLogger('root')
+    logger = logging.getLogger()
     FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
     logging.basicConfig(format=FORMAT)
-    logger.setLevel(logging.CRITICAL)
+    logger.setLevel(logging.DEBUG)
 
     main()
 

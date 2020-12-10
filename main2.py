@@ -18,10 +18,15 @@ import datetime as dt
 import numpy as np
 from multiprocessing import Pool, cpu_count
 import FRP
+from tqdm import tqdm
 from itertools import combinations
 from itertools import zip_longest
+import smart_excel_to_pandas.smart_excel_to_pandas
+import PowerTransformer
+
 
 # OS Functions
+
 def filesearch(word=""):
     """Returns a list with all files with the word/extension in it"""
     logger.info('Starting filesearch')
@@ -224,7 +229,7 @@ def breaker_df_create_data(BreakerDF, PowerTransformerDF, Fault_Reporting_Proiri
 
 def relay_df_cleanup(relaydf):
     relaydf = relaydf[~relaydf['DEV_STATUS'].str.match('Planned')]
-    relaydf = relaydf.reset_index()
+    relaydf = relaydf.reset_index(drop=True)
     return relaydf
 
 
@@ -244,7 +249,7 @@ def relay_df_create_data(relaydf, PowerTransformerDF, Outdoor_BreakerDF):
     relaydf['Maximo_Asset_Protected_Device_Num'] = relaydf['LOCATION'].str.extract('(\d+$)').astype(str)
 
     relaydf = parallelize_dataframe(relaydf, old_funtion, PowerTransformerDF, Outdoor_BreakerDF)
-    #old_funtion(relaydf, PowerTransformerDF, Outdoor_BreakerDF)
+    #relaydf = old_funtion(relaydf, PowerTransformerDF, Outdoor_BreakerDF)
 
     return relaydf
 
@@ -265,26 +270,26 @@ def parallelize_dataframe(df, func, df1, df2):
 
 def old_funtion(relaydf, PowerTransformerDF, Outdoor_BreakerDF):
 
-    relaydf = relaydf.reset_index()
-    for index in range(relaydf.shape[0]):
-        if relaydf['Maximo_Asset_Protected_Device_Type'].iloc[index] == 'TRF':
+    relaydf = relaydf.reset_index(drop=True)
+    #for index in range(relaydf.shape[0]):
+    for index in tqdm(range(relaydf.shape[0]), desc='Looping over relay Dataframe'):
+        if relaydf['Maximo_Asset_Protected_Device_Type'][index] == 'TRF':
             df = PowerTransformerDF[(PowerTransformerDF['Maximo_Code'].str.contains(relaydf['Maximo_Asset_Protected_Station'][index])) &
-                                    (PowerTransformerDF['Maximo_Code'].str.contains(relaydf['Maximo_Asset_Protected_Device_Num'][index]))
+                                    (PowerTransformerDF['Maximo_Code'].str.contains(str(relaydf['Maximo_Asset_Protected_Device_Num'][index])))
                                     ]
 
-        if relaydf['Maximo_Asset_Protected_Device_Type'].iloc[index] == 'BKR':
+        elif relaydf['Maximo_Asset_Protected_Device_Type'][index] == 'BKR':
             df = Outdoor_BreakerDF[(Outdoor_BreakerDF['Maximo_Code'].str.contains(relaydf['Maximo_Asset_Protected_Station'][index])) &
                                    (Outdoor_BreakerDF['Maximo_Code'].str.contains(relaydf['Maximo_Asset_Protected_Device_Num'][index]))
                                    ]
 
         if df.shape[0] >> 0:
             try:
-                relaydf['Maximo_Asset_Protected'][index] = df['Maximo_Code'].iloc[0]
+                relaydf['Maximo_Asset_Protected'].iloc[index] = df['Maximo_Code'].iloc[0]
             except:
-                print(df['Maximo_Code'])
+               print(df['Maximo_Code'])
         else:
             relaydf['Maximo_Asset_Protected'][index] = np.nan
-        print(index)
     return relaydf
 
 def summer_load_df_cleanup(Summer_LoadDF):
@@ -361,6 +366,7 @@ def add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
                                                 RelayDataDF['MFG'].str.match('SEL'), 'SUB 4',
                                                 RelayDataDF['Feeder_Protection'])
 
+
     list = ['SUB 1', 'SUB 2/3', 'SUB 4', 'Non Sub']
 
     df = RelayDataDF[RelayDataDF['Feeder_Protection'].isin(list)]
@@ -374,36 +380,10 @@ def add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
     return Outdoor_BreakerDF
 
 
-def add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF):
-    RelayDataDF['Xfmer_Diff_Protection'] = 'Non Sub'
-    RelayDataDF['Xfmer_Diff_Protection'] = np.where(RelayDataDF['MODEL'].str.match('DPU') &
-                                                    RelayDataDF['MFG'].str.contains('ABB'), 'SUB 1',
-                                                    RelayDataDF['Xfmer_Diff_Protection'])
-
-    RelayDataDF['Xfmer_Diff_Protection'] = np.where(RelayDataDF['MODEL'].str.contains('STD') &
-                                                    RelayDataDF['MFG'].str.match('GE'), 'SUB 2',
-                                                    RelayDataDF['Xfmer_Diff_Protection'])
-
-    RelayDataDF['Xfmer_Diff_Protection'] = np.where(RelayDataDF['MODEL'].str.match('SEL-587') &
-                                                    RelayDataDF['MFG'].str.contains('SEL'), 'SUB 3',
-                                                    RelayDataDF['Xfmer_Diff_Protection'])
-
-    RelayDataDF['Xfmer_Diff_Protection'] = np.where(RelayDataDF['MODEL'].str.contains('387') &
-                                                    RelayDataDF['MFG'].str.match('SEL'), 'SUB 4',
-                                                    RelayDataDF['Xfmer_Diff_Protection'])
 
 
-    list = ['SUB 1', 'SUB 2', 'SUB 3', 'SUB 4', 'Non Sub']
 
-    df = RelayDataDF[RelayDataDF['Xfmer_Diff_Protection'].isin(list)]
 
-    PowerTransformerDF = pd.merge(PowerTransformerDF,
-                                 df[['Maximo_Asset_Protected', 'Xfmer_Diff_Protection']],
-                                 left_on='Maximo_Code', right_on='Maximo_Asset_Protected', how='left')
-
-    PowerTransformerDF = PowerTransformerDF.sort_values(by=['Xfmer_Diff_Protection']).drop_duplicates(subset=['Maximo_Code'], keep=("last"))
-
-    return PowerTransformerDF
 
 
 def Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF):
@@ -433,15 +413,7 @@ def Add_Fused_Bank_to_Stationdf(AIStationDF, PowerTransformerDF):
     return AIStationDF
 
 
-def Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
-    Outdoor_BreakerDF_sorted = Outdoor_BreakerDF.sort_values(by=['Feeder_Protection'])
-    Outdoor_BreakerDF_sorted = Outdoor_BreakerDF_sorted.drop_duplicates(subset=['Associated_XFMR'], keep=("first"))
 
-    PowerTransformerDF = pd.merge(PowerTransformerDF,
-                                  Outdoor_BreakerDF_sorted[['Associated_XFMR', 'Feeder_Protection']],
-                                  left_on='Maximo_Code', right_on='Associated_XFMR', how='left')
-
-    return PowerTransformerDF
 
 
 def Add_Feeder_Protection_on_Station(PowerTransformerDF, AIStationDF):
@@ -474,6 +446,12 @@ def Add_Bus_Tie_at_Station(AIStationDF, Outdoor_BreakerDF):
         BUS_TIE_Count=('Asset_Number', pd.Series.count))
     StationDF = pd.merge(AIStationDF, countDF[['Station_Name', 'BUS_TIE_Count']], on='Station_Name', how='left')
 
+    StationDF['Bus_Equal_XFMER'] = False
+    StationDF['Bus_Equal_XFMER'] = np.where(StationDF['BUS_TIE_Count'].gt(StationDF['XFMER_Count']/2),
+                                            True,
+                                            StationDF['Bus_Equal_XFMER'])
+
+
     return StationDF
 def CS_df_cleanup(df):
     return df
@@ -484,43 +462,120 @@ def Add_CS_count_on_Station(Circuit_Switcher_df, AIStationDF):
     countDF = FIDdf.groupby(['Station_Name'], as_index=False).agg(
         FID_Count=('Asset_Number', pd.Series.count))
     StationDF = pd.merge(AIStationDF, countDF[['Station_Name', 'FID_Count']], on='Station_Name', how='left')
+    StationDF['FID_Count'] = np.where( StationDF['FID_Count'].isnull(), 0, StationDF['FID_Count'])
     return StationDF
+
+def Add_FID_count_equal_XFMER_count(AIStationDF):
+    AIStationDF['FIDequalXFMER'] = False
+    AIStationDF['FIDequalXFMER'] = np.where(AIStationDF['XFMER_Count'] == AIStationDF['FID_Count'], True,  AIStationDF['FIDequalXFMER'])
+
+    return AIStationDF
 
 def Suggested_Approach_Station(AIStationDF):
     AIStationDF['Suggested_Approach_Station'] = np.nan
 
     #rebuild
-    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Single_Phase_Station'] == True),
+    AIStationDF['Suggested_Approach_Station'] = np.where(
+        (AIStationDF['Single_Phase_Station'] == True) ,
                                                         'Rebuild',
                                                         AIStationDF['Suggested_Approach_Station'])
 
-    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['FID_Count'] == 0) &
-                                                         (AIStationDF['Feeder_Protection'] == 'Non Sub'),
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+        (~AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['Feeder_Protection'].str.match('Non Sub')) &
+                                                         (AIStationDF['Xfmer_Diff_Protection'].str.match('Non Sub')),
                                                          'Rebuild',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+        (AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['Feeder_Protection'].str.match('Non Sub')) &
+                                                         (AIStationDF['Xfmer_Diff_Protection'].str.match('Non Sub')) &
+                                                         (~AIStationDF['Bus_Equal_XFMER']),
+                                                         'Rebuild',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+        (AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['Feeder_Protection'].str.match('Non Sub')) &
+                                                         (AIStationDF['Xfmer_Diff_Protection'].str.match('Non Sub')) &
+                                                         (AIStationDF['Bus_Equal_XFMER']),
+                                                         'Component',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         ((~AIStationDF['FIDequalXFMER'])) &
+                                                         (AIStationDF['Xfmer_Diff_Protection'].str.match('SUB 4')),
+                                                         'Have District verify FIDs in Maximo',
                                                          AIStationDF['Suggested_Approach_Station'])
 
 
     #Sub 4 Steel Structure with FID count equal to XFMER count
 
-    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['STATION_STR_TYPE'] == 'STEEL') &
-                                                        (AIStationDF['FID_Count'] == AIStationDF['XFMER_Count']) &
-                                                        (AIStationDF['Xfmer_Diff_Protection'] == 'SUB 4') &
-                                                        (AIStationDF['Feeder_Protection'] == 'SUB 4'),
-                                                        'Component',
-                                                AIStationDF['Suggested_Approach_Station'])
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+        (AIStationDF['FIDequalXFMER']) &
+        (AIStationDF['Xfmer_Diff_Protection'] == 'SUB 2') &
+        (AIStationDF['Feeder_Protection'].isin(['SUB 4', 'SUB 2/3', 'SUB 1'])),
+        'Component',
+        AIStationDF['Suggested_Approach_Station'])
 
-    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['STATION_STR_TYPE'] == 'STEEL') &
-                                                         (AIStationDF['FID_Count'] == AIStationDF['XFMER_Count']) &
-                                                         (AIStationDF['Xfmer_Diff_Protection'] == 'SUB 3') &
-                                                         (AIStationDF['Feeder_Protection'] == 'SUB 2/3'),
-                                                         'Component',
-                                                         AIStationDF['Suggested_Approach_Station'])
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+        (AIStationDF['FIDequalXFMER']) &
+        (AIStationDF['Xfmer_Diff_Protection'] == 'SUB 3') &
+        (AIStationDF['Feeder_Protection'].isin(['SUB 2/3', 'SUB 4'])),
+        'Component',
+        AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+        (AIStationDF['FIDequalXFMER']) &
+        (AIStationDF['Xfmer_Diff_Protection'] == 'SUB 4') &
+        (AIStationDF['Feeder_Protection'].isin(['SUB 2/3', 'SUB 4'])),
+        'Component',
+        AIStationDF['Suggested_Approach_Station'])
+
+    # Sub 2/3 Steel Structure with FID count equal to XFMER count
+
+    #AIStationDF['Suggested_Approach_Station'] = np.where(~(AIStationDF['STATION_STR_TYPE'].str.contains('WOOD', na=False)) &
+     #                                                    (AIStationDF['FIDequalXFMER']) &
+      #                                                   (AIStationDF['Xfmer_Diff_Protection'] == 'SUB 3') &
+       #                                                  (AIStationDF['Feeder_Protection'] == 'SUB 2/3'),
+        #                                                 'Component',
+         #                                                AIStationDF['Suggested_Approach_Station'])
+
+  #  AIStationDF['Suggested_Approach_Station'] = np.where(
+   #     ~(AIStationDF['STATION_STR_TYPE'].str.contains('WOOD', na=False)) &
+    #    (AIStationDF['FIDequalXFMER']) &
+     #   (AIStationDF['Xfmer_Diff_Protection'].str.contains('SUB', na=False)) &
+      #  (AIStationDF['Feeder_Protection'].str.contains('SUB', na=False)),
+       # 'Component',
+        #AIStationDF['Suggested_Approach_Station'])
+
 
     return AIStationDF
 
+def Match_Missing_Breakers_to_XFMR(Outdoor_BreakerDF, PowerTransformerDF):
+    df = PowerTransformerDF[PowerTransformerDF['Station_Name'].isin(PowerTransformerDF['Station_Name'].drop_duplicates(keep=False))]
+    df = df.rename(columns={'Maximo_Code':'Associated_XFMR'})
+    df = df[df['Station_Name'].isin(Outdoor_BreakerDF[Outdoor_BreakerDF['Associated_XFMR'].isnull()]['Station_Name'])]
+    Outdoor_BreakerDF = pd.merge(Outdoor_BreakerDF, df[['Associated_XFMR', 'Station_Name']],on='Station_Name', how='left')
+    Outdoor_BreakerDF['Associated_XFMR'] = np.nan
+    Outdoor_BreakerDF['Associated_XFMR'] = np.where(Outdoor_BreakerDF['Associated_XFMR_x'].notnull(),
+                                                    Outdoor_BreakerDF['Associated_XFMR_x'],
+                                                    Outdoor_BreakerDF['Associated_XFMR'])
+
+    Outdoor_BreakerDF['Associated_XFMR'] = np.where(Outdoor_BreakerDF['Associated_XFMR_y'].notnull(),
+                                                    Outdoor_BreakerDF['Associated_XFMR_y'],
+                                                    Outdoor_BreakerDF['Associated_XFMR'])
+
+    Outdoor_BreakerDF.drop(columns=['Associated_XFMR_x', 'Associated_XFMR_y'])
+
+    return Outdoor_BreakerDF
+
+
 def main():
     """ Main entry point of the app """
-    logger.info("CMPC Wide Area Distrution Main Loop")
+    logger.info("CMPC Wide Area Distribution Main Loop")
     Change_Working_Path('./Data')
 
     Station_filename = 'Station Location a375a0647.xlsx'
@@ -538,14 +593,40 @@ def main():
 
     Excel_Files = [Station_filename, Transformer_filename, Breaker_filename, Relay_filename,
                    Metalclad_Switchgear_filename, Summer_Load_Filename, Winter_Load_Filename,
-                   Fault_Reporting_Proiritization_filename, Fault_Reporting_Proiritization_filename1, Circuit_Switcher_filename]
+                    Circuit_Switcher_filename]
 
-    pool = Pool(processes=8)
+
+    #poolo = Pool(processes=15)
     Associated_Breaker_DetailsDF = Excel_to_Pandas(Associated_Breaker_Details_filename, check_update=False,
                                                    SheetName='Associated Breaker Details')
     Associated_Breaker_DetailsDF = Associated_Breaker_DetailsDF[1]
     # Import Excel files
-    df_list = pool.map(Excel_to_Pandas, Excel_Files)
+    #df_listo = pool.map(Excel_to_Pandas, Excel_Files)
+
+    pool = Pool(processes=15)
+    df_list = pool.map(smart_excel_to_pandas.smart_excel_to_pandas.Smart_Excel_to_Pandas, Excel_Files)
+    pool.close()
+    pool.join()
+
+    Excel_Files = [Fault_Reporting_Proiritization_filename, Fault_Reporting_Proiritization_filename1]
+
+    pool = Pool(processes=15)
+    #df_list.append(pool.starmap(smart_excel_to_pandas.smart_excel_to_pandas.Smart_Excel_to_Pandas,
+     #                           [(Excel_Files[0],None), (Excel_Files[1],None)]))
+    df_list1 = pool.map(Excel_to_Pandas, Excel_Files)
+
+    df_list = df_list + df_list1
+    pool.close()
+    pool.join()
+
+    #df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1] = pd.concat([
+    df = pd.concat([
+       df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1],
+       df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename1)][1]], axis=0, ignore_index=True)
+    tup = (Fault_Reporting_Proiritization_filename, df)
+    df_list = df_list + [tup]
+    del df_list[10]
+
 
     Transformer_RiskDF = Cleanup_Dataframe(pd.read_csv(Transformer_Risk_filename))
 
@@ -582,20 +663,28 @@ def main():
                                                     Winter_LoadDF, AIStationDF)
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
     Outdoor_BreakerDF = Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF)
+    Outdoor_BreakerDF = Match_Missing_Breakers_to_XFMR(Outdoor_BreakerDF, PowerTransformerDF)
     RelayDataDF = relay_df_create_data(RelayDataDF, PowerTransformerDF, Outdoor_BreakerDF)
     AIStationDF = add_Risk_to_Stationdf(AIStationDF, PowerTransformerDF)
     AIStationDF = add_MVA_Exceeded_Stationdf(AIStationDF, PowerTransformerDF)
     Outdoor_BreakerDF = add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
     PowerTransformerDF = Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF)
     AIStationDF = Add_Fused_Bank_to_Stationdf(AIStationDF, PowerTransformerDF)
-    PowerTransformerDF = Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF)
+    PowerTransformerDF = PowerTransformer.Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF)
     AIStationDF = Add_Feeder_Protection_on_Station(PowerTransformerDF, AIStationDF)
     AIStationDF = Add_Bus_Tie_at_Station(AIStationDF, Outdoor_BreakerDF)
-    PowerTransformerDF = add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF)
+    #PowerTransformerDF = PowerTransformer.add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF)
+    PowerTransformerDF = PowerTransformer.add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF)
     AIStationDF = Add_Xfmer_Diff_Protection_on_Station(PowerTransformerDF, AIStationDF)
     AIStationDF = Add_CS_count_on_Station(Circuit_Switcher_df, AIStationDF)
+    AIStationDF = Add_FID_count_equal_XFMER_count(AIStationDF)
     AIStationDF = Suggested_Approach_Station(AIStationDF)
 
+
+    # Analytics
+    df = AIStationDF.groupby(['Has_Fused_Bank','Single_Phase_Station', 'FIDequalXFMER', 'Xfmer_Diff_Protection', 'Bus_Equal_XFMER',
+                              'Feeder_Protection', 'Suggested_Approach_Station'], dropna=False).size().reset_index().rename(columns={0:'count'})
+    df.to_excel('Analytics.xlsx')
     # Select columns to keep
     # AIStationDF = AIStationDF[
     #   ['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age', 'Single_Phase_Station',
@@ -603,7 +692,7 @@ def main():
     #  ]]
 
     AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
-                               'Single_Phase_Station', 'Has_Fused_Bank', 'XFMER_Count', 'FID_Count', 'BUS_TIE_Count', 'Mean_Feeder_Age', 'Feeder_Protection',
+                               'Single_Phase_Station', 'Has_Fused_Bank', 'XFMER_Count', 'FID_Count', 'FIDequalXFMER', 'BUS_TIE_Count', 'Bus_Equal_XFMER', 'Mean_Feeder_Age', 'Feeder_Protection',
          'Xfmer_Diff_Protection', 'Suggested_Approach_Station'
          ]]
 
@@ -641,7 +730,7 @@ if __name__ == '__main__':
     logger = logging.getLogger('root')
     FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
     logging.basicConfig(format=FORMAT)
-    logger.setLevel(logging.CRITICAL)
+    logger.setLevel(logging.INFO)
 
     main()
 
