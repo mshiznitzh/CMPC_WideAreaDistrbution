@@ -48,6 +48,33 @@ def add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF
 def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF):
     PowerTransformerDF['Xfmer_Diff_Protection'] = 'Non Sub'
 
+    # SUB IV
+    df = RelayDataDF.query(
+        'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("387")')
+
+    df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) == 2)
+    df2 = RelayDataDF.query(
+        'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("2100")')
+
+    df = df[df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
+
+    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
+        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB IV',
+        PowerTransformerDF['Xfmer_Diff_Protection'])
+
+    # SUB III
+    df = RelayDataDF.query(
+        'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("587")')
+
+    df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) == 1)
+
+    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
+        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB III',
+        PowerTransformerDF['Xfmer_Diff_Protection'])
+
+
     # Dual 587 Retrofit
     df = RelayDataDF.query(
         'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("587")')
@@ -58,7 +85,7 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
 
     # retrodf = dual587df[dual587df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
 
-    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
+    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'Dual 587 Retrofit',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
@@ -68,16 +95,8 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
 
     df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) == 2)
 
-    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
+    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'Dual 387 Retrofit',
-        PowerTransformerDF['Xfmer_Diff_Protection'])
-
-    # SUB II
-    df = RelayDataDF.query(
-        'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("GE") & MODEL.str.contains("PJC")')
-
-    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
-        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB I',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
     # SUB II
@@ -86,32 +105,23 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
 
     df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) == 3)
 
-    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
+    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB II',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
-    # SUB III
+    # SUB I
     df = RelayDataDF.query(
-        'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("587")')
-
-    df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) == 1)
+        'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("GE") & MODEL.str.contains("PJC")')
 
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
-        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB III',
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
+        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB I',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
-    # SUB IV
-    df = RelayDataDF.query(
-        'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("387")')
-
-    df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) == 2)
-    df2 = RelayDataDF.query(
-       'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("2100")')
-
-    df = df[df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
-
+    #Fused
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
-        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB IV',
+        PowerTransformerDF['IsFused'],
+        'Fused',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
     return PowerTransformerDF

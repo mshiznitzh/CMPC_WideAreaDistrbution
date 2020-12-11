@@ -447,82 +447,74 @@ def Add_FID_count_equal_XFMER_count(AIStationDF):
 def Suggested_Approach_Station(AIStationDF):
     AIStationDF['Suggested_Approach_Station'] = np.nan
 
-    #rebuild
+    #Rebuild
     AIStationDF['Suggested_Approach_Station'] = np.where(
-        (AIStationDF['Single_Phase_Station'] == True) ,
-                                                        'Rebuild',
-                                                        AIStationDF['Suggested_Approach_Station'])
+     (AIStationDF['Single_Phase_Station'] == True) ,
+     'Rebuild 1',
+     AIStationDF['Suggested_Approach_Station'])
 
 
     AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
         (~AIStationDF['FIDequalXFMER']) &
-                                                         (AIStationDF['Feeder_Protection'].str.match('Non Sub')) &
-                                                         (AIStationDF['Xfmer_Diff_Protection'].str.match('Non Sub')),
-                                                         'Rebuild',
-                                                         AIStationDF['Suggested_Approach_Station'])
+        (AIStationDF['Feeder_Protection'].str.match('Non Sub')) &
+        (AIStationDF['Xfmer_Diff_Protection'].str.match('Non Sub')),
+        'Rebuild 2',
+         AIStationDF['Suggested_Approach_Station'])
 
     AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
         (AIStationDF['FIDequalXFMER']) &
-                                                         (AIStationDF['Feeder_Protection'].str.match('Non Sub')) &
-                                                         (AIStationDF['Xfmer_Diff_Protection'].str.match('Non Sub')) &
-                                                         (~AIStationDF['Bus_Equal_XFMER']),
-                                                         'Rebuild',
+        (AIStationDF['Feeder_Protection'].str.match('Non Sub')) &
+        (AIStationDF['Xfmer_Diff_Protection'].str.match('Non Sub')) &
+        (~AIStationDF['Bus_Equal_XFMER']),
+        'Rebuild 3',
+        AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (~AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['Feeder_Protection'] != 'Non Sub') &
+                                                         (AIStationDF['Xfmer_Diff_Protection'] != 'Non Sub') &
+                                                         (AIStationDF['Mean_Feeder_Age'] > pd.Timedelta(20 * 365)),
+                                                         'Rebuild 4',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+   #Upgrade
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (~AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['Feeder_Protection'] != 'Non Sub') &
+                                                         (AIStationDF['Xfmer_Diff_Protection'] != 'Non Sub') &
+                                                         (AIStationDF['Mean_Feeder_Age'] < pd.Timedelta(20 * 365)),
+                                                         'Component 1',
                                                          AIStationDF['Suggested_Approach_Station'])
 
     AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
-        (AIStationDF['FIDequalXFMER']) &
-                                                         (AIStationDF['Feeder_Protection'].str.match('Non Sub')) &
-                                                         (AIStationDF['Xfmer_Diff_Protection'].str.match('Non Sub')) &
+                                                         (AIStationDF['FIDequalXFMER']) &
                                                          (AIStationDF['Bus_Equal_XFMER']),
-                                                         'Component',
+                                                         'Component 2',
                                                          AIStationDF['Suggested_Approach_Station'])
 
     AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
-                                                         ((~AIStationDF['FIDequalXFMER'])) &
-                                                         (AIStationDF['Xfmer_Diff_Protection'].str.match('SUB 4')),
-                                                         'Have District verify FIDs in Maximo',
+        (AIStationDF['FIDequalXFMER']) &
+        (AIStationDF['Xfmer_Diff_Protection'] != 'Non Sub') &
+        (AIStationDF['Feeder_Protection']!= 'Non Sub'),
+        'Component 3',
+        AIStationDF['Suggested_Approach_Station'])
+
+
+
+   #Verify Data
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (AIStationDF['Xfmer_Diff_Protection'].isnull()) &
+                                                         (AIStationDF['Feeder_Protection'].isnull()),
+                                                         'Verify that station has no Transformer',
                                                          AIStationDF['Suggested_Approach_Station'])
 
-
-    #Sub 4 Steel Structure with FID count equal to XFMER count
-
     AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
-        (AIStationDF['FIDequalXFMER']) &
-        (AIStationDF['Xfmer_Diff_Protection'] == 'SUB 2') &
-        (AIStationDF['Feeder_Protection'].isin(['SUB 4', 'SUB 2/3', 'SUB 1'])),
-        'Component',
-        AIStationDF['Suggested_Approach_Station'])
-
-    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
-        (AIStationDF['FIDequalXFMER']) &
-        (AIStationDF['Xfmer_Diff_Protection'] == 'SUB 3') &
-        (AIStationDF['Feeder_Protection'].isin(['SUB 2/3', 'SUB 4'])),
-        'Component',
-        AIStationDF['Suggested_Approach_Station'])
-
-    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
-        (AIStationDF['FIDequalXFMER']) &
-        (AIStationDF['Xfmer_Diff_Protection'] == 'SUB 4') &
-        (AIStationDF['Feeder_Protection'].isin(['SUB 2/3', 'SUB 4'])),
-        'Component',
-        AIStationDF['Suggested_Approach_Station'])
-
-    # Sub 2/3 Steel Structure with FID count equal to XFMER count
-
-    #AIStationDF['Suggested_Approach_Station'] = np.where(~(AIStationDF['STATION_STR_TYPE'].str.contains('WOOD', na=False)) &
-     #                                                    (AIStationDF['FIDequalXFMER']) &
-      #                                                   (AIStationDF['Xfmer_Diff_Protection'] == 'SUB 3') &
-       #                                                  (AIStationDF['Feeder_Protection'] == 'SUB 2/3'),
-        #                                                 'Component',
-         #                                                AIStationDF['Suggested_Approach_Station'])
-
-  #  AIStationDF['Suggested_Approach_Station'] = np.where(
-   #     ~(AIStationDF['STATION_STR_TYPE'].str.contains('WOOD', na=False)) &
-    #    (AIStationDF['FIDequalXFMER']) &
-     #   (AIStationDF['Xfmer_Diff_Protection'].str.contains('SUB', na=False)) &
-      #  (AIStationDF['Feeder_Protection'].str.contains('SUB', na=False)),
-       # 'Component',
-        #AIStationDF['Suggested_Approach_Station'])
+                                                         ~AIStationDF['Single_Phase_Station'] &
+                                                         (AIStationDF['Feeder_Protection'].isnull()) &
+                                                         (~AIStationDF['Mean_Feeder_Age'].isnull()),
+                                                         'Verify that Feeders at station have a Transformer associated on asset health tool',
+                                                         AIStationDF['Suggested_Approach_Station'])
 
 
     return AIStationDF
