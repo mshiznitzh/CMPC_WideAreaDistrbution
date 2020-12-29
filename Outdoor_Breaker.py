@@ -37,10 +37,10 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
 
     # SUB IV
     df = RelayDataDF.query(
-        'PROT_TYPE.str.match("DISTRIBUTION FEEDER") & MFG.str.match("SEL") & MODEL.str.contains("351")')
+        'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("SEL") & MODEL.str.contains("351")')
 
     df2 = RelayDataDF.query(
-        'PROT_TYPE.str.match("DISTRIBUTION FEEDER") & MFG.str.match("SEL") & MODEL.str.contains("551")')
+        'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("SEL") & MODEL.str.contains("551")')
 
     df = df[df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
 
@@ -51,10 +51,10 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
 
     # SUB II/III
     df = RelayDataDF.query(
-        'PROT_TYPE.str.match("DISTRIBUTION FEEDER") & MFG.str.match("ABB") & MODEL.str.contains("DPU-2000R")')
+        'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("ABB") & MODEL.str.contains("DPU-2000R")')
 
     df2 = RelayDataDF.query(
-        'PROT_TYPE.str.match("DISTRIBUTION FEEDER") & MFG.str.match("SEL") & MODEL.str.contains("501")')
+        'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("SEL") & MODEL.str.contains("501")')
 
     df = df[df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
 
@@ -63,9 +63,23 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
                                                        'SUB II/III',
                                                        Outdoor_BreakerDF['Feeder_Protection'])
 
+    df = RelayDataDF.query(
+        'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("ABB") & MODEL.str.contains("DPU-2000R")')
+
+    df2 = RelayDataDF.query(
+        'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("BASLER") & MODEL.str.contains("BE1-51")')
+
+    df = df[df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
+
+    Outdoor_BreakerDF['Feeder_Protection'] = np.where(Outdoor_BreakerDF['Feeder_Protection'].str.match('Non Sub') &
+                                                      Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected),
+                                                      'DPU2000R_BE151_Standalone',
+                                                      Outdoor_BreakerDF['Feeder_Protection'])
+
+
     # SUB I
     df = RelayDataDF.query(
-        'PROT_TYPE.str.match("DISTRIBUTION FEEDER") & MFG.str.match("ABB") & MODEL.str.match("DPU")')
+        'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("ABB") & MODEL.str.match("DPU")')
 
     df = df[df.Maximo_Asset_Protected.isin(df.Maximo_Asset_Protected)]
 

@@ -12,6 +12,28 @@ def Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
 
     return PowerTransformerDF
 
+def Add_High_Side_Interrupter_PowerTransformerDF(PowerTransformerDF, High_Side_Protection_DF):
+
+    PowerTransformerDF = pd.merge(PowerTransformerDF, High_Side_Protection_DF[['Maximo_Code', 'High_Side_Interrupter']], how= 'left', on='Maximo_Code')
+
+    PowerTransformerDF['High_Side_Interrupter'] = np.where(PowerTransformerDF['High_Side_Interrupter'] == 'B' ,
+                                                           'Breaker' ,
+                                                           PowerTransformerDF['High_Side_Interrupter'])
+
+    PowerTransformerDF['High_Side_Interrupter'] = np.where(PowerTransformerDF['High_Side_Interrupter'] == 'CS',
+                                                           'Circuit Switcher',
+                                                           PowerTransformerDF['High_Side_Interrupter'])
+
+    PowerTransformerDF['High_Side_Interrupter'] = np.where(PowerTransformerDF['High_Side_Interrupter'] == 'FB',
+                                                           'Flash Bus',
+                                                           PowerTransformerDF['High_Side_Interrupter'])
+
+    PowerTransformerDF['High_Side_Interrupter'] = np.where(PowerTransformerDF['High_Side_Interrupter'] == 'GS',
+                                                           'Ground Switch',
+                                                           PowerTransformerDF['High_Side_Interrupter'])
+
+    return PowerTransformerDF
+
 
 def add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF):
     RelayDataDF['Xfmer_Diff_Protection'] = 'Non Sub'
@@ -107,6 +129,16 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
 
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB II',
+        PowerTransformerDF['Xfmer_Diff_Protection'])
+
+    df = RelayDataDF.query(
+        'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("GE") & MODEL.str.contains("STD")')
+
+    df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) != 3)
+
+    PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
+        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'Have District Verify',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
     # SUB I

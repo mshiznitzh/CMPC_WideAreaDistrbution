@@ -447,8 +447,24 @@ def Add_FID_count_equal_XFMER_count(AIStationDF):
 def Suggested_Approach_Station(AIStationDF):
     AIStationDF['Suggested_Approach_Station'] = np.nan
 
+    # Verify Data
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Xfmer_Diff_Protection'].isnull()) &
+                                                         (AIStationDF['Feeder_Protection'].isnull()),
+                                                         'Verify that station has no Transformer',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         ~AIStationDF['Single_Phase_Station'] &
+                                                         (AIStationDF['Feeder_Protection'].isnull()) &
+                                                         (~AIStationDF['Mean_Feeder_Age'].isnull()),
+                                                         'Verify that Feeders at station have a Transformer associated on asset health tool',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+
+
     #Rebuild
-    AIStationDF['Suggested_Approach_Station'] = np.where(
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
      (AIStationDF['Single_Phase_Station'] == True) ,
      'Rebuild 1',
      AIStationDF['Suggested_Approach_Station'])
@@ -477,7 +493,50 @@ def Suggested_Approach_Station(AIStationDF):
                                                          'Rebuild 4',
                                                          AIStationDF['Suggested_Approach_Station'])
 
-   #Upgrade
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (AIStationDF['Xfmer_Diff_Protection'].str.match('Fused')) &
+                                                         (AIStationDF['Feeder_Protection'].isnull())
+                                                         ,
+                                                         'Rebuild 5',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['Xfmer_Diff_Protection'].isin(['Non Sub','Fused'])) &
+                                                         (AIStationDF['XFMER_Count'].gt(1)) &
+                                                         (~AIStationDF['Bus_Equal_XFMER']),
+                                                         'Rebuild 6',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (~AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['XFMER_Count'].gt(1)) &
+                                                         (~AIStationDF['Bus_Equal_XFMER']),
+                                                         'Rebuild 7',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['Xfmer_Diff_Protection'] != 'Non Sub') &
+                                                         (AIStationDF['XFMER_Count'].gt(1)),
+                                                         'Rebuild 8',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (~AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['XFMER_Count'].gt(1)),
+                                                         'Rebuild 9',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (~AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['Feeder_Protection'].isnull()),
+                                                         'Rebuild 10',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+
+
+    #Upgrade
     AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
                                                          (~AIStationDF['FIDequalXFMER']) &
                                                          (AIStationDF['Feeder_Protection'] != 'Non Sub') &
@@ -499,22 +558,34 @@ def Suggested_Approach_Station(AIStationDF):
         'Component 3',
         AIStationDF['Suggested_Approach_Station'])
 
-
-
-   #Verify Data
-
     AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
-                                                         (AIStationDF['Xfmer_Diff_Protection'].isnull()) &
-                                                         (AIStationDF['Feeder_Protection'].isnull()),
-                                                         'Verify that station has no Transformer',
+                                                         (AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['Xfmer_Diff_Protection'] =='Non Sub') &
+                                                         (AIStationDF['XFMER_Count'].eq(1)),
+                                                         'Component 4',
                                                          AIStationDF['Suggested_Approach_Station'])
 
     AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
-                                                         ~AIStationDF['Single_Phase_Station'] &
-                                                         (AIStationDF['Feeder_Protection'].isnull()) &
-                                                         (~AIStationDF['Mean_Feeder_Age'].isnull()),
-                                                         'Verify that Feeders at station have a Transformer associated on asset health tool',
+                                                         (~AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['Feeder_Protection']) &
+                                                         (AIStationDF['XFMER_Count'].eq(1)),
+                                                         'Component 5',
                                                          AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['XFMER_Count'].eq(1)),
+                                                         'Component 6',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+    AIStationDF['Suggested_Approach_Station'] = np.where((AIStationDF['Suggested_Approach_Station'].str.match('nan')) &
+                                                         (~AIStationDF['FIDequalXFMER']) &
+                                                         (AIStationDF['XFMER_Count'].eq(1)) &
+                                                         (AIStationDF['Xfmer_Diff_Protection'] != 'Non Sub'),
+                                                         'Component 7',
+                                                         AIStationDF['Suggested_Approach_Station'])
+
+
 
 
     return AIStationDF
@@ -555,6 +626,7 @@ def main():
     Fault_Reporting_Proiritization_filename = 'Fault Reporting Prioritization_EDOC.XLSX'
     Fault_Reporting_Proiritization_filename1 = 'WDOC Fault Recording Relay Feeder List with Priority v1.1.xlsx'
     Associated_Breaker_Details_filename = 'Transformer Health - Analysis.xlsx'
+    High_Side_Protection = 'Transformer Health - Analysis.xlsx'
 
     Excel_Files = [Station_filename, Transformer_filename, Breaker_filename, Relay_filename,
                    Metalclad_Switchgear_filename, Summer_Load_Filename, Winter_Load_Filename,
@@ -562,6 +634,12 @@ def main():
 
 
     #poolo = Pool(processes=15)
+
+    High_Side_Protection_DF = Excel_to_Pandas(Associated_Breaker_Details_filename, check_update=False,
+                                                   SheetName='High Side Protection')
+
+    High_Side_Protection_DF = High_Side_Protection_DF[1]
+
     Associated_Breaker_DetailsDF = Excel_to_Pandas(Associated_Breaker_Details_filename, check_update=False,
                                                    SheetName='Associated Breaker Details')
     Associated_Breaker_DetailsDF = Associated_Breaker_DetailsDF[1]
@@ -632,9 +710,13 @@ def main():
     RelayDataDF = relay_df_create_data(RelayDataDF, PowerTransformerDF, Outdoor_BreakerDF)
     AIStationDF = add_Risk_to_Stationdf(AIStationDF, PowerTransformerDF)
     AIStationDF = add_MVA_Exceeded_Stationdf(AIStationDF, PowerTransformerDF)
+
     #Outdoor_BreakerDF = Outdoor_Breaker.add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
     Outdoor_BreakerDF = Outdoor_Breaker.add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
     PowerTransformerDF = Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF)
+
+    PowerTransformerDF = PowerTransformer.Add_High_Side_Interrupter_PowerTransformerDF(PowerTransformerDF, High_Side_Protection_DF)
+
     AIStationDF = Add_Fused_Bank_to_Stationdf(AIStationDF, PowerTransformerDF)
     PowerTransformerDF = PowerTransformer.Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF)
     AIStationDF = Add_Feeder_Protection_on_Station(PowerTransformerDF, AIStationDF)
@@ -648,7 +730,7 @@ def main():
 
 
     # Analytics
-    df = AIStationDF.groupby(['Has_Fused_Bank','Single_Phase_Station', 'FIDequalXFMER', 'Xfmer_Diff_Protection', 'Bus_Equal_XFMER',
+    df = AIStationDF.groupby(['Single_Phase_Station', 'FIDequalXFMER', 'Xfmer_Diff_Protection', 'Bus_Equal_XFMER',
                               'Feeder_Protection', 'Suggested_Approach_Station'], dropna=False).size().reset_index().rename(columns={0:'count'})
     df.to_excel('Analytics.xlsx')
     # Select columns to keep
@@ -666,7 +748,7 @@ def main():
                                              'Age', 'MAXIMUM_MVA', 'LV_NOM_KV', 'Risk_Index_(Normalized)',
                                              'Max_Projected_Summer_Load', 'Max_Projected_Winter_Load',
                                              'Max_MVA_Exceeded', 'NUM_PH', 'IsFused', 'Feeder_Protection',
-                                             'Xfmer_Diff_Protection'
+                                             'Xfmer_Diff_Protection', 'High_Side_Interrupter'
                                              ]]
 
     Outdoor_BreakerDF = Outdoor_BreakerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code', 'Age',
