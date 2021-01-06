@@ -593,9 +593,36 @@ def Suggested_Approach_Station(AIStationDF):
                                                          AIStationDF['Suggested_Approach_Station'])
 
 
-
-
     return AIStationDF
+
+def Suggested_Approach_Station2(stationdf, XFMR_df):
+    stationdf['Suggested_Approach_Station2'] = np.nan
+    XFMR_df['Suggested_Approach_Bank'] = np.where(XFMR_df['Suggested_Approach_Bank'].str.contains('Rebuild'),
+                                                   'Rebuild',
+                                                   XFMR_df['Suggested_Approach_Bank'])
+
+    XFMR_df['Suggested_Approach_Bank'] = np.where(XFMR_df['Suggested_Approach_Bank'].str.contains('Upgrade'),
+                                                   'Upgrade',
+                                                   XFMR_df['Suggested_Approach_Bank'])
+
+    XFMR_df['Suggested_Approach_Bank'] = np.where(
+        XFMR_df['Suggested_Approach_Bank'].str.contains('Data Validation Needed'),
+        'Data Validation Needed',
+        XFMR_df['Suggested_Approach_Bank'])
+
+    station_array = stationdf['Station_Name'].unique()
+    for station in tqdm(station_array):
+        filtered = XFMR_df[XFMR_df['Station_Name'] == station]
+
+        if filtered['Suggested_Approach_Bank'].nunique() == 1:
+            approach = filtered['Suggested_Approach_Bank'].unique()[0]
+            stationdf['Suggested_Approach_Station2'] = np.where(stationdf['Station_Name'] == station,
+                                 approach,
+                                 stationdf['Suggested_Approach_Station2'])
+
+
+    return stationdf
+
 
 def Match_Missing_Breakers_to_XFMR(Outdoor_BreakerDF, PowerTransformerDF):
     df = PowerTransformerDF[PowerTransformerDF['Station_Name'].isin(PowerTransformerDF['Station_Name'].drop_duplicates(keep=False))]
@@ -737,6 +764,7 @@ def main():
     AIStationDF = Add_FID_count_equal_XFMER_count(AIStationDF)
     AIStationDF = Suggested_Approach_Station(AIStationDF)
     PowerTransformerDF = PowerTransformer.Suggested_Approach_Bank(PowerTransformerDF)
+    AIStationDF = Suggested_Approach_Station2(AIStationDF, PowerTransformerDF)
 
 
     # Analytics
@@ -756,7 +784,7 @@ def main():
 
     AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
                                'Single_Phase_Station', 'Has_Fused_Bank', 'XFMER_Count', 'FID_Count', 'FIDequalXFMER', 'BUS_TIE_Count', 'Bus_Equal_XFMER', 'Mean_Feeder_Age', 'Feeder_Protection',
-         'Xfmer_Diff_Protection', 'Suggested_Approach_Station'
+         'Xfmer_Diff_Protection', 'Suggested_Approach_Station', 'Suggested_Approach_Station2'
          ]]
 
     PowerTransformerDF = PowerTransformerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code',
