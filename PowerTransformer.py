@@ -39,9 +39,9 @@ def Suggested_Approach_Bank(PowerTransformerDF):
 
     PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
         PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
-        ~PowerTransformerDF['Feeder_Protection'].isin(Modern_Feeder_Protection) |
-        ~PowerTransformerDF['Xfmer_Diff_Protection'].isin(Modern_XFMER_Protection) &
-        PowerTransformerDF['High_Side_Interrupter'].str.match('MOAS'),
+        PowerTransformerDF['High_Side_Interrupter'].str.match('MOAS') &
+        ~PowerTransformerDF['Feeder_Protection'].isin(Modern_Feeder_Protection) &
+        ~PowerTransformerDF['Xfmer_Diff_Protection'].isin(Modern_XFMER_Protection),
         'Rebuild Rule 5',
         PowerTransformerDF['Suggested_Approach_Bank'])
 
@@ -82,6 +82,14 @@ def Suggested_Approach_Bank(PowerTransformerDF):
         PowerTransformerDF['Feeder_Protection'].isin(Modern_Feeder_Protection) &
         PowerTransformerDF['High_Side_Interrupter'].str.match('MOAS'),
         'Component Upgrade Rule 5',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('MOAS') &
+        PowerTransformerDF['Feeder_Protection'].isin(Modern_Feeder_Protection) |
+        PowerTransformerDF['Xfmer_Diff_Protection'].isin(Modern_XFMER_Protection),
+        'Component Upgrade Rule 6',
         PowerTransformerDF['Suggested_Approach_Bank'])
 
 

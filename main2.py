@@ -593,6 +593,8 @@ def Suggested_Approach_Station(AIStationDF):
                                                          AIStationDF['Suggested_Approach_Station'])
 
 
+
+
     return AIStationDF
 
 def Suggested_Approach_Station2(stationdf, XFMR_df):
@@ -610,6 +612,10 @@ def Suggested_Approach_Station2(stationdf, XFMR_df):
         'Data Validation Needed',
         XFMR_df['Suggested_Approach_Bank'])
 
+    XFMR_df['Age'] = np.where(XFMR_df['Age'].isnull(),
+                              0,
+                              XFMR_df['Age'])
+
     station_array = stationdf['Station_Name'].unique()
     for station in tqdm(station_array):
         filtered = XFMR_df[XFMR_df['Station_Name'] == station]
@@ -619,7 +625,11 @@ def Suggested_Approach_Station2(stationdf, XFMR_df):
             stationdf['Suggested_Approach_Station2'] = np.where(stationdf['Station_Name'] == station,
                                  approach,
                                  stationdf['Suggested_Approach_Station2'])
+        elif int(filtered['Age'].mean().days/365) >> 40:
+            stationdf['Suggested_Approach_Station2'] = 'Rebuild'
 
+        else:
+            stationdf['Suggested_Approach_Station2'] = 'Upgrade'
 
     return stationdf
 
@@ -764,7 +774,7 @@ def main():
     AIStationDF = Add_FID_count_equal_XFMER_count(AIStationDF)
     AIStationDF = Suggested_Approach_Station(AIStationDF)
     PowerTransformerDF = PowerTransformer.Suggested_Approach_Bank(PowerTransformerDF)
-    AIStationDF = Suggested_Approach_Station2(AIStationDF, PowerTransformerDF)
+    AIStationDF = Suggested_Approach_Station2(AIStationDF, PowerTransformerDF.copy())
 
 
     # Analytics
