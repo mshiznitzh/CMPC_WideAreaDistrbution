@@ -2,6 +2,14 @@ import pandas as pd
 import numpy as np
 
 
+def Suggested_Approach_Bank(PowerTransformerDF):
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.nan
+
+    #PowerTransformerDF['Suggested_Approach_Bank'] = np.where(PowerTransformerDF['High_Side_Interrupter'].str.match('FUSE'))
+
+
+    return PowerTransformerDF
+
 def Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
     Outdoor_BreakerDF_sorted = Outdoor_BreakerDF.sort_values(by=['Feeder_Protection'])
     Outdoor_BreakerDF_sorted = Outdoor_BreakerDF_sorted.drop_duplicates(subset=['Associated_XFMR'], keep=("first"))
@@ -31,6 +39,11 @@ def Add_High_Side_Interrupter_PowerTransformerDF(PowerTransformerDF, High_Side_P
     PowerTransformerDF['High_Side_Interrupter'] = np.where(PowerTransformerDF['High_Side_Interrupter'] == 'GS',
                                                            'Ground Switch',
                                                            PowerTransformerDF['High_Side_Interrupter'])
+
+    PowerTransformerDF['High_Side_Interrupter'] = np.where(PowerTransformerDF['High_Side_Interrupter'].isna(),
+                                                           'FUSE (Assumed)',
+                                                           PowerTransformerDF['High_Side_Interrupter'])
+
 
     return PowerTransformerDF
 

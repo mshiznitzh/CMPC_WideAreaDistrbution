@@ -715,7 +715,7 @@ def main():
     Outdoor_BreakerDF = Outdoor_Breaker.add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
     PowerTransformerDF = Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF)
 
-    PowerTransformerDF = PowerTransformer.Add_High_Side_Interrupter_PowerTransformerDF(PowerTransformerDF, High_Side_Protection_DF)
+
 
     AIStationDF = Add_Fused_Bank_to_Stationdf(AIStationDF, PowerTransformerDF)
     PowerTransformerDF = PowerTransformer.Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF)
@@ -723,13 +723,20 @@ def main():
     AIStationDF = Add_Bus_Tie_at_Station(AIStationDF, Outdoor_BreakerDF)
     #PowerTransformerDF = PowerTransformer.add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF)
     PowerTransformerDF = PowerTransformer.add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF)
+    PowerTransformerDF = PowerTransformer.Add_High_Side_Interrupter_PowerTransformerDF(PowerTransformerDF,
+                                                                                       High_Side_Protection_DF)
     AIStationDF = Add_Xfmer_Diff_Protection_on_Station(PowerTransformerDF, AIStationDF)
     AIStationDF = Add_CS_count_on_Station(Circuit_Switcher_df, AIStationDF)
     AIStationDF = Add_FID_count_equal_XFMER_count(AIStationDF)
     AIStationDF = Suggested_Approach_Station(AIStationDF)
-
+    PowerTransformerDF = PowerTransformer.Suggested_Approach_Bank(PowerTransformerDF)
 
     # Analytics
+    df = PowerTransformerDF.groupby(['Feeder_Protection', 'Xfmer_Diff_Protection', 'High_Side_Interrupter', 'Suggested_Approach_Bank'],
+                             dropna=False).size().reset_index().rename(columns={0: 'count'})
+    df.to_excel('Bank Analytics.xlsx')
+
+
     df = AIStationDF.groupby(['Single_Phase_Station', 'FIDequalXFMER', 'Xfmer_Diff_Protection', 'Bus_Equal_XFMER',
                               'Feeder_Protection', 'Suggested_Approach_Station'], dropna=False).size().reset_index().rename(columns={0:'count'})
     df.to_excel('Analytics.xlsx')
