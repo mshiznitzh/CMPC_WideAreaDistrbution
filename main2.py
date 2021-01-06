@@ -104,11 +104,12 @@ def station_df_cleanup(StationDF, Metalclad_Switchgear_DF):
 
 def transformer_df_cleanup(TransformerDF):
     TransformerDF = TransformerDF[TransformerDF['XFMR_SERVICE'].str.contains('POWER')]
-
+    
     return TransformerDF
 
 
 def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF, Winter_LoadDF, AIStationDF):
+    logger.info('Starting Function PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
     PowerTransformerDF = PowerTransformerDF[PowerTransformerDF['Station_Name'].isin(list(AIStationDF['Station_Name']))]
     PowerTransformerDF['Age'] = (dt.date.today() - PowerTransformerDF['Manufacture_Date'].dt.date) / 365
     Transformer_RiskDF = Transformer_RiskDF.rename(columns={"Asset": "Maximo_Code"})
@@ -156,6 +157,9 @@ def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_Lo
         (PowerTransformerDF['Max_Projected_Winter_Load'] > PowerTransformerDF['MAXIMUM_MVA']), True,
         PowerTransformerDF['Max_MVA_Exceeded'])
 
+
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
     return PowerTransformerDF
 
 
@@ -374,6 +378,9 @@ def Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF):
         PowerTransformerDF['Maximo_Code'].isin(RelayDataDF['Maximo_Asset_Protected']),
         False, PowerTransformerDF['IsFused'])
 
+
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
     return PowerTransformerDF
 
 
@@ -731,6 +738,7 @@ def main():
     AIStationDF = Suggested_Approach_Station(AIStationDF)
     PowerTransformerDF = PowerTransformer.Suggested_Approach_Bank(PowerTransformerDF)
 
+
     # Analytics
     df = PowerTransformerDF.groupby(['Feeder_Protection', 'Xfmer_Diff_Protection', 'High_Side_Interrupter', 'Suggested_Approach_Bank'],
                              dropna=False).size().reset_index().rename(columns={0: 'count'})
@@ -755,7 +763,7 @@ def main():
                                              'Age', 'MAXIMUM_MVA', 'LV_NOM_KV', 'Risk_Index_(Normalized)',
                                              'Max_Projected_Summer_Load', 'Max_Projected_Winter_Load',
                                              'Max_MVA_Exceeded', 'NUM_PH', 'IsFused', 'Feeder_Protection',
-                                             'Xfmer_Diff_Protection', 'High_Side_Interrupter'
+                                             'Xfmer_Diff_Protection', 'High_Side_Interrupter', 'Suggested_Approach_Bank'
                                              ]]
 
     Outdoor_BreakerDF = Outdoor_BreakerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code', 'Age',

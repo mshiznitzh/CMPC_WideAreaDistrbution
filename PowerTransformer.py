@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-
+import logging
+logger = logging.getLogger('root')
 
 def Suggested_Approach_Bank(PowerTransformerDF):
     Modern_XFMER_Protection = ['SUB I', 'SUB II','SUB III','SUB IV', 'Dual 387 Retrofit', 'Dual 587 Retrofit']
@@ -134,6 +135,9 @@ def Suggested_Approach_Bank(PowerTransformerDF):
         'Data Validation Needed Rule 8',
         PowerTransformerDF['Suggested_Approach_Bank'])
 
+
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
     return PowerTransformerDF
 
 def Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
@@ -144,6 +148,9 @@ def Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
                                   Outdoor_BreakerDF_sorted[['Associated_XFMR', 'Feeder_Protection']],
                                   left_on='Maximo_Code', right_on='Associated_XFMR', how='left')
 
+
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
     return PowerTransformerDF
 
 def Add_High_Side_Interrupter_PowerTransformerDF(PowerTransformerDF, High_Side_Protection_DF):
@@ -171,6 +178,9 @@ def Add_High_Side_Interrupter_PowerTransformerDF(PowerTransformerDF, High_Side_P
                                                            PowerTransformerDF['High_Side_Interrupter'])
 
 
+
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
     return PowerTransformerDF
 
 
@@ -203,6 +213,9 @@ def add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF
     PowerTransformerDF = PowerTransformerDF.sort_values(by=['Xfmer_Diff_Protection']).drop_duplicates(
         subset=['Maximo_Code'], keep=("last"))
 
+
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
     return PowerTransformerDF
 
 
@@ -295,4 +308,7 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
         'Fused',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
+
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
     return PowerTransformerDF
