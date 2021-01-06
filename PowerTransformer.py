@@ -3,10 +3,136 @@ import numpy as np
 
 
 def Suggested_Approach_Bank(PowerTransformerDF):
+    Modern_XFMER_Protection = ['SUB I', 'SUB II','SUB III','SUB IV', 'Dual 387 Retrofit', 'Dual 587 Retrofit']
+    Modern_Feeder_Protection = ['SUB I', 'SUB II/III','SUB IV', 'DPU2000R_BE151_Standalone']
     PowerTransformerDF['Suggested_Approach_Bank'] = np.nan
 
-    #PowerTransformerDF['Suggested_Approach_Bank'] = np.where(PowerTransformerDF['High_Side_Interrupter'].str.match('FUSE'))
 
+#Rebuilds
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['NUM_PH'] == 1,
+        'Rebuild Rule 1',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
+        PowerTransformerDF['High_Side_Interrupter'].str.contains('FUSE') &
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Fused'),
+        'Rebuild Rule 2',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub')  &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('Flash Bus'),
+        'Rebuild Rule 3',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('Ground Switch'),
+        'Rebuild Rule 4',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
+        ~PowerTransformerDF['Feeder_Protection'].isin(Modern_Feeder_Protection) |
+        ~PowerTransformerDF['Xfmer_Diff_Protection'].isin(Modern_XFMER_Protection) &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('MOAS'),
+        'Rebuild Rule 5',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    #Component Upgrades
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('Breaker'),
+        'Component Upgrade Rule 1',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
+        PowerTransformerDF['Xfmer_Diff_Protection'].isin(Modern_XFMER_Protection) &
+        PowerTransformerDF['Feeder_Protection'].isin(Modern_Feeder_Protection) &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('FID'),
+        'Component Upgrade Rule 2',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
+       # PowerTransformerDF['Xfmer_Diff_Protection'].isin(Modern_XFMER_Protection) &
+       # PowerTransformerDF['Feeder_Protection'].isin(Modern_Feeder_Protection) &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('Circuit Switcher'),
+        'Component Upgrade Rule 3',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
+        PowerTransformerDF['Xfmer_Diff_Protection'].isin(Modern_XFMER_Protection) &
+        #PowerTransformerDF['Feeder_Protection'].isin(Modern_Feeder_Protection) &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('Flash Bus'),
+        'Component Upgrade Rule 4',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Suggested_Approach_Bank'].str.match('nan') &
+        PowerTransformerDF['Xfmer_Diff_Protection'].isin(Modern_XFMER_Protection) &
+        PowerTransformerDF['Feeder_Protection'].isin(Modern_Feeder_Protection) &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('MOAS'),
+        'Component Upgrade Rule 5',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+
+#Data Validation
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        ~PowerTransformerDF['Xfmer_Diff_Protection'].isin(
+            ['Fused']) &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('FUSE'),
+        'Data Validation Needed Rule 1',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Fused') &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('Circuit Switcher'),
+         'Data Validation Needed Rule 2',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Have District Verify') &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('Circuit Switcher'),
+        'Data Validation Needed Rule 3',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Fused') &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('Flash Bus'),
+        'Data Validation Needed Rule 4',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('SUB IV') &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('Flash Bus'),
+        'Data Validation Needed Rule 5',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('SUB IV') &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('Ground Switch'),
+        'Data Validation Needed Rule 6',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Fused') &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('MOAS'),
+        'Data Validation Needed Rule 7',
+        PowerTransformerDF['Suggested_Approach_Bank'])
+
+    PowerTransformerDF['Suggested_Approach_Bank'] = np.where(
+        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Have District Verify') &
+        PowerTransformerDF['High_Side_Interrupter'].str.match('MOAS'),
+        'Data Validation Needed Rule 8',
+        PowerTransformerDF['Suggested_Approach_Bank'])
 
     return PowerTransformerDF
 
