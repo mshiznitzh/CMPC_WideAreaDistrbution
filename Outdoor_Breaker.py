@@ -62,7 +62,7 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
                                                        Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected),
                                                        'SUB II/III',
                                                        Outdoor_BreakerDF['Feeder_Protection'])
-
+    # DPU2000R_BE151_Standalone
     df = RelayDataDF.query(
         'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("ABB") & MODEL.str.contains("DPU-2000R")')
 

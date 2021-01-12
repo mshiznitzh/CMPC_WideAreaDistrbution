@@ -351,18 +351,6 @@ def summer_load_df_create_data(Summer_LoadDF, AIStationDF):
 
     return Summer_LoadDF
 
-
-
-
-
-
-
-
-
-
-
-
-
 def Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF):
     Associated_Breaker_DetailsDF = Associated_Breaker_DetailsDF.rename(
         columns={"Maximo_Code": "Associated_XFMR", "Associated_Breaker_Maximo_Code": "Maximo_Code"})
@@ -391,10 +379,6 @@ def Add_Fused_Bank_to_Stationdf(AIStationDF, PowerTransformerDF):
                                              , AIStationDF['Has_Fused_Bank'])
 
     return AIStationDF
-
-
-
-
 
 def Add_Feeder_Protection_on_Station(PowerTransformerDF, AIStationDF):
     PowerTransformerDF_sorted = PowerTransformerDF.sort_values(by=['Feeder_Protection'])
@@ -612,24 +596,32 @@ def Suggested_Approach_Station2(stationdf, XFMR_df):
         'Data Validation Needed',
         XFMR_df['Suggested_Approach_Bank'])
 
-    XFMR_df['Age'] = np.where(XFMR_df['Age'].isnull(),
-                              0,
-                              XFMR_df['Age'])
+    XFMR_df['Age'] = XFMR_df['Age'].fillna(pd.Timedelta(seconds=0))
 
     station_array = stationdf['Station_Name'].unique()
     for station in tqdm(station_array):
         filtered = XFMR_df[XFMR_df['Station_Name'] == station]
-
-        if filtered['Suggested_Approach_Bank'].nunique() == 1:
-            approach = filtered['Suggested_Approach_Bank'].unique()[0]
-            stationdf['Suggested_Approach_Station2'] = np.where(stationdf['Station_Name'] == station,
-                                 approach,
-                                 stationdf['Suggested_Approach_Station2'])
-        elif int(filtered['Age'].mean().days/365) >> 40:
-            stationdf['Suggested_Approach_Station2'] = 'Rebuild'
-
+        if len(filtered) >= 1:
+            logger.info(str(station) + ' has transformer')
+            if filtered['Suggested_Approach_Bank'].nunique() == 1:
+                approach = filtered['Suggested_Approach_Bank'].unique()[0]
+                stationdf['Suggested_Approach_Station2'] = np.where(stationdf['Station_Name'] == station, approach, stationdf['Suggested_Approach_Station2'])
+            elif (filtered['Suggested_Approach_Bank'].nunique() >> 1 and bool(filtered['Age'].mean().days >> 40)):
+                logger.info(str(station) + ' is transformer is old and will be rebuilt')
+                stationdf['Suggested_Approach_Station2'] = np.where(stationdf['Station_Name'] == station,
+                                                                    'Rebuild',
+                                                                    stationdf['Suggested_Approach_Station2'])
+            elif (filtered['Suggested_Approach_Bank'].nunique() >> 1 and bool(filtered['Age'].mean().days << 40)):
+                logger.info(str(station) + ' is transformer is not old enough so will be upgraded')
+                stationdf['Suggested_Approach_Station2'] = np.where(stationdf['Station_Name'] == station,
+                                                                    'Upgrade',
+                                                                    stationdf['Suggested_Approach_Station2'])
         else:
-            stationdf['Suggested_Approach_Station2'] = 'Upgrade'
+            logger.info(str(station) + ' has no transformer')
+            stationdf['Suggested_Approach_Station2'] = np.where(stationdf['Station_Name'] == station,
+                                                                'Verify that station has no Transformer',
+                                                                stationdf['Suggested_Approach_Station2'])
+
 
     return stationdf
 
@@ -651,6 +643,61 @@ def Match_Missing_Breakers_to_XFMR(Outdoor_BreakerDF, PowerTransformerDF):
     Outdoor_BreakerDF.drop(columns=['Associated_XFMR_x', 'Associated_XFMR_y'])
 
     return Outdoor_BreakerDF
+
+def Add_Needed_MVA_Station(AIStationDF, PowerTransformerDF):
+
+    AIStationDF['Needed_MVA'] = 0
+    Station_MVA = PowerTransformerDF.groupby(['Station_Name'])['MAXIMUM_MVA'].sum()
+    Station_Projected_Summer_Load = PowerTransformerDF.groupby(['Station_Name'])['Max_Projected_Summer_Load'].sum()
+    StationProjected_Winter_Load = PowerTransformerDF.groupby(['Station_Name'])['Max_Projected_Winter_Load'].sum()
+    AIStationDF = pd.merge(AIStationDF, Station_MVA, on='Station_Name', how='left')
+    AIStationDF = pd.merge(AIStationDF, Station_Projected_Summer_Load, on='Station_Name', how='left')
+    AIStationDF = pd.merge(AIStationDF, StationProjected_Winter_Load, on='Station_Name', how='left')
+
+    AIStationDF['Needed_MVA'] = np.where(AIStationDF['Max_Projected_Summer_Load'].isnull() &
+                              AIStationDF['Max_Projected_Winter_Load'].isnull(),
+                              AIStationDF['MAXIMUM_MVA'],
+                              AIStationDF['Needed_MVA']
+                                       )
+
+    AIStationDF['Needed_MVA'] = np.where(AIStationDF['Max_Projected_Summer_Load'].notna() &
+                                       AIStationDF['Max_Projected_Winter_Load'].notna() &
+                                       AIStationDF['Max_Projected_Summer_Load'].ge(AIStationDF['Max_Projected_Winter_Load']),
+                                       AIStationDF['Max_Projected_Summer_Load'],
+                                       AIStationDF['Needed_MVA']
+                                       )
+
+    AIStationDF['Needed_MVA'] = np.where(AIStationDF['Max_Projected_Summer_Load'].notna() &
+                                       AIStationDF['Max_Projected_Winter_Load'].notna() &
+                                       AIStationDF['Max_Projected_Summer_Load'].le(AIStationDF[
+                                           'Max_Projected_Winter_Load']),
+                                       AIStationDF['Max_Projected_Winter_Load'],
+                                       AIStationDF['Needed_MVA']
+                                       )
+
+
+    return AIStationDF
+
+def Add_Suggested_Solution_Station(AIStationDF):
+    AIStationDF['Suggested_Solution'] = np.nan
+
+    AIStationDF['Suggested_Solution'] = np.where(AIStationDF['Suggested_Approach_Station2'].str.match('Rebuild') &
+                                                 AIStationDF['Needed_MVA'].lt(7.5),
+                                                 'Rural',
+                                                 AIStationDF['Suggested_Solution'])
+
+    AIStationDF['Suggested_Solution'] = np.where(AIStationDF['Suggested_Approach_Station2'].str.match('Rebuild') &
+                                                 AIStationDF['Needed_MVA'].ge(7.5) &
+                                                 AIStationDF['Needed_MVA'].lt(28),
+                                                 'SUB IV (Little)',
+                                                 AIStationDF['Suggested_Solution'])
+
+    AIStationDF['Suggested_Solution'] = np.where(AIStationDF['Suggested_Approach_Station2'].str.match('Rebuild') &
+                                                 AIStationDF['Needed_MVA'].ge(28),
+                                                  'SUB IV (Big)',
+                                                 AIStationDF['Suggested_Solution'])
+
+    return AIStationDF
 
 
 def main():
@@ -775,6 +822,8 @@ def main():
     AIStationDF = Suggested_Approach_Station(AIStationDF)
     PowerTransformerDF = PowerTransformer.Suggested_Approach_Bank(PowerTransformerDF)
     AIStationDF = Suggested_Approach_Station2(AIStationDF, PowerTransformerDF.copy())
+    AIStationDF = Add_Needed_MVA_Station(AIStationDF.copy(), PowerTransformerDF.copy())
+    AIStationDF = Add_Suggested_Solution_Station(AIStationDF.copy())
 
 
     # Analytics
@@ -792,15 +841,17 @@ def main():
     #   'Has_Fused_Bank', 'XFMER_Count', 'BUS_TIE_Count',  'Max_Risk_Index_at_Station', 'Max_MVA_Exceeded', 'Mean_Feeder_Age', 'Feeder_Protection'
     #  ]]
 
-    AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name', 'STATION_STR_TYPE', 'Age',
-                               'Single_Phase_Station', 'Has_Fused_Bank', 'XFMER_Count', 'FID_Count', 'FIDequalXFMER', 'BUS_TIE_Count', 'Bus_Equal_XFMER', 'Mean_Feeder_Age', 'Feeder_Protection',
-         'Xfmer_Diff_Protection', 'Suggested_Approach_Station', 'Suggested_Approach_Station2'
-         ]]
+
+
+    AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name',
+                               'Single_Phase_Station', 'Has_Fused_Bank', 'XFMER_Count', 'Mean_Feeder_Age',
+                               'Suggested_Approach_Station2', 'Suggested_Solution'
+                               ]]
 
     PowerTransformerDF = PowerTransformerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code',
                                              'Age', 'MAXIMUM_MVA', 'LV_NOM_KV', 'Risk_Index_(Normalized)',
                                              'Max_Projected_Summer_Load', 'Max_Projected_Winter_Load',
-                                             'Max_MVA_Exceeded', 'NUM_PH', 'IsFused', 'Feeder_Protection',
+                                             'NUM_PH', 'Feeder_Protection',
                                              'Xfmer_Diff_Protection', 'High_Side_Interrupter', 'Suggested_Approach_Bank'
                                              ]]
 
