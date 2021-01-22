@@ -232,7 +232,7 @@ def relay_df_create_data(relaydf, PowerTransformerDF, Outdoor_BreakerDF):
     return relaydf
 
 def parallelize_dataframe(df, func, df1, df2):
-    cpu_used = cpu_count()-1
+    cpu_used = cpu_count()
     df_split = np.array_split(df, cpu_used)
     arr = [(df_split[x], df1, df2) for x in range(len(df_split))]
 
@@ -715,14 +715,14 @@ def main():
     # Import Excel files
     #df_listo = pool.map(Excel_to_Pandas, Excel_Files)
 
-    pool = Pool(processes=15)
+    pool = Pool(processes= cpu_count())
     df_list = pool.map(smart_excel_to_pandas.smart_excel_to_pandas.Smart_Excel_to_Pandas, Excel_Files)
     pool.close()
     pool.join()
 
     Excel_Files = [Fault_Reporting_Proiritization_filename, Fault_Reporting_Proiritization_filename1]
 
-    pool = Pool(processes=15)
+    pool = Pool(processes= cpu_count())
     #df_list.append(pool.starmap(smart_excel_to_pandas.smart_excel_to_pandas.Smart_Excel_to_Pandas,
      #                           [(Excel_Files[0],None), (Excel_Files[1],None)]))
     df_list1 = pool.map(Excel_to_Pandas, Excel_Files)
