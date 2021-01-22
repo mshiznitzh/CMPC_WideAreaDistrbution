@@ -1,0 +1,55 @@
+Config_files:
+  path: ./configs
+  filename: stations.yaml
+
+Station_Spreadsheet:
+  path: ./Data
+  filename: Station Location a375a0647.xlsx
+
+Transformer_Spreadsheet:
+  path: ./Data
+  filename: Power Transformer Asset a7c07a1cb.xlsx
+
+Breaker_Spreadsheet:
+    path: ./Data
+    filename: Breaker Asset a475fe18.xlsx
+
+Relay_Spreadsheet:
+    path: ./Data
+    filename: Dist Locations w Relays 110620.xls
+
+Circuit_Switcher_Spreadsheet:
+    path: ./Data
+    filename: Circuit Switcher Asset a93a3aebd.xlsx
+
+Metalclad_Switchgear_Spreadsheet:
+    path: ./Data
+    filename: Metalclad Switchgear Asset aa554c63f.xlsx
+
+Transformer_Risk_Spreadsheet:
+    path: ./Data
+    filename: Oncor Transformer Asset Health Export - Risk Matrix - System.csv
+
+Summer_Load_Spreadsheet:
+    path: ./Data
+    filename: 2021 Load Projections(4-10)Summer - Clean.xlsx
+
+Winter_Load_Spreadsheet:
+    path: ./Data
+    filename: 2021 Load Projections(4-10)Winter - Clean.xlsx
+
+East_Doc_Fault_Report_Spreadsheet:
+    path: ./Data
+    filename: Fault Reporting Prioritization_EDOC.XLSX
+
+West_Doc_Fault_Report_Spreadsheet:
+    path: ./Data
+    filename: WDOC Fault Recording Relay Feeder List with Priority v1.1.xlsx
+
+Associated_Breaker_Spreadsheet:
+    path: ./Data
+    filename: Transformer Health - Analysis.xlsx
+
+High_Side_Protection_Spreadsheet:
+    path: ./Data
+    filename: Transformer Health - Analysis.xlsx

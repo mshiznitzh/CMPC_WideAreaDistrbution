@@ -19,40 +19,14 @@ import numpy as np
 from multiprocessing import Pool, cpu_count
 import FRP
 from tqdm import tqdm
-from itertools import combinations
-from itertools import zip_longest
 import smart_excel_to_pandas.smart_excel_to_pandas
 import PowerTransformer
 import Outdoor_Breaker
+import pandas_tools
+import yaml_tools
+import os_tools
 
 # OS Functions
-
-def filesearch(word=""):
-    """Returns a list with all files with the word/extension in it"""
-    logger.info('Starting filesearch')
-    file = []
-    for f in glob.glob("*"):
-        if word[0] == ".":
-            if f.endswith(word):
-                file.append(f)
-
-        elif word in f:
-            file.append(f)
-            # return file
-    logger.debug(file)
-    return file
-
-
-def Change_Working_Path(path):
-    """Check if New path exists if the path exist the working path will be changed else will print an error message"""
-    if os.path.exists(path):
-        # Change the current working Directory
-        try:
-            os.chdir(path)  # Change the working directory
-        except OSError:
-            logger.error("Can't change the Current Working Directory", exc_info=True)
-    else:
-        print("Can't change the Current Working Directory because this path doesn't exits")
 
 
 # Pandas Functions
@@ -71,7 +45,7 @@ def Excel_to_Pandas(filename, check_update=False, SheetName=None):
         df = pd.read_excel(filename, SheetName)
         df = pd.concat(df, axis=0, ignore_index=True)
     except:
-        logger.error("Error importing file " + filename, exc_info=True)
+        logger.error("Error importing file " + os.getcwd() + filename, exc_info=True)
 
     df = Cleanup_Dataframe(df)
     logger.info(df.info(verbose=True))
@@ -703,21 +677,25 @@ def Add_Suggested_Solution_Station(AIStationDF):
 def main():
     """ Main entry point of the app """
     logger.info("CMPC Wide Area Distribution Main Loop")
-    Change_Working_Path('./Data')
 
-    Station_filename = 'Station Location a375a0647.xlsx'
-    Transformer_filename = 'Power Transformer Asset a7c07a1cb.xlsx'
-    Breaker_filename = 'Breaker Asset a475fe18.xlsx'
-    Relay_filename = 'Dist Locations w Relays 110620.xls'
-    Circuit_Switcher_filename = 'Circuit Switcher Asset a93a3aebd.xlsx'
-    Metalclad_Switchgear_filename = 'Metalclad Switchgear Asset aa554c63f.xlsx'
-    Transformer_Risk_filename = 'Oncor Transformer Asset Health Export - Risk Matrix - System.csv'
-    Summer_Load_Filename = '2021 Load Projections(4-10)Summer - Clean.xlsx'
-    Winter_Load_Filename = '2021 Load Projections(4-10)Winter - Clean.xlsx'
-    Fault_Reporting_Proiritization_filename = 'Fault Reporting Prioritization_EDOC.XLSX'
-    Fault_Reporting_Proiritization_filename1 = 'WDOC Fault Recording Relay Feeder List with Priority v1.1.xlsx'
-    Associated_Breaker_Details_filename = 'Transformer Health - Analysis.xlsx'
-    High_Side_Protection = 'Transformer Health - Analysis.xlsx'
+
+    files_yaml = yaml_tools.read_yaml('./configs','files.yaml')
+
+    old_path = os_tools.Change_Working_Path('./Data')
+    #Station_filename = 'Station Location a375a0647.xlsx'
+    Station_filename = files_yaml['Station_Spreadsheet']['filename']
+    Transformer_filename = files_yaml['Transformer_Spreadsheet']['filename']
+    Breaker_filename = files_yaml['Breaker_Spreadsheet']['filename']
+    Relay_filename = files_yaml['Relay_Spreadsheet']['filename']
+    Circuit_Switcher_filename = files_yaml['Circuit_Switcher_Spreadsheet']['filename']
+    Metalclad_Switchgear_filename = files_yaml['Metalclad_Switchgear_Spreadsheet']['filename']
+    Transformer_Risk_filename = files_yaml['Transformer_Risk_Spreadsheet']['filename']
+    Summer_Load_Filename = files_yaml['Summer_Load_Spreadsheet']['filename']
+    Winter_Load_Filename = files_yaml['Winter_Load_Spreadsheet']['filename']
+    Fault_Reporting_Proiritization_filename = files_yaml['East_Doc_Fault_Report_Spreadsheet']['filename']
+    Fault_Reporting_Proiritization_filename1 = files_yaml['West_Doc_Fault_Report_Spreadsheet']['filename']
+    Associated_Breaker_Details_filename = files_yaml['Associated_Breaker_Spreadsheet']['filename']
+    High_Side_Protection = files_yaml['High_Side_Protection_Spreadsheet']['filename']
 
     Excel_Files = [Station_filename, Transformer_filename, Breaker_filename, Relay_filename,
                    Metalclad_Switchgear_filename, Summer_Load_Filename, Winter_Load_Filename,
@@ -753,6 +731,8 @@ def main():
     pool.close()
     pool.join()
 
+
+
     #df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1] = pd.concat([
     df = pd.concat([
        df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1],
@@ -786,7 +766,7 @@ def main():
 
     Circuit_Switcher_df = CS_df_cleanup(
         df_list[next(i for i, t in enumerate(df_list) if t[0] == Circuit_Switcher_filename)][1])
-
+    os_tools.Change_Working_Path(old_path)
     # Create new date in the dataframes
     Fault_Reporting_ProiritizationDF = FRP.Fault_Reporting_Proiritization_df_create_data(
         Fault_Reporting_ProiritizationDF)
@@ -821,6 +801,8 @@ def main():
     AIStationDF = Add_FID_count_equal_XFMER_count(AIStationDF)
     AIStationDF = Suggested_Approach_Station(AIStationDF)
     PowerTransformerDF = PowerTransformer.Suggested_Approach_Bank(PowerTransformerDF)
+
+    #AIStationDF = pandas_tools.add_colunms_to_df(AIStationDF.copy(),)
     AIStationDF = Suggested_Approach_Station2(AIStationDF, PowerTransformerDF.copy())
     AIStationDF = Add_Needed_MVA_Station(AIStationDF.copy(), PowerTransformerDF.copy())
     AIStationDF = Add_Suggested_Solution_Station(AIStationDF.copy())
