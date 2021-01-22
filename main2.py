@@ -679,7 +679,7 @@ def Add_Needed_MVA_Station(AIStationDF, PowerTransformerDF):
     return AIStationDF
 
 def Add_Suggested_Solution_Station(AIStationDF):
-    AIStationDF['Suggested_Solution'] = np.nan
+    AIStationDF['Suggested_Solution'] = ''
 
     AIStationDF['Suggested_Solution'] = np.where(AIStationDF['Suggested_Approach_Station2'].str.match('Rebuild') &
                                                  AIStationDF['Needed_MVA'].lt(7.5),
@@ -870,7 +870,7 @@ def main():
     RelayDataDF.to_excel(writer, sheet_name='Relay', index=False)
     Summer_LoadDF.to_excel(writer, sheet_name='Summer Load', index=False)
     Winter_LoadDF.to_excel(writer, sheet_name='Winter Load', index=False)
-    Circuit_Switcher_df.to_excel(writer, sheet_name='Circuit Switcher', index=False)
+    #Circuit_Switcher_df.to_excel(writer, sheet_name='Circuit Switcher', index=False)
     # Close the Pandas Excel writer and output the Excel file.
     writer.save()
 
