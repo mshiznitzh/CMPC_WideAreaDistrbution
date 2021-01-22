@@ -12,7 +12,6 @@ __license__ = "MIT"
 import logging
 from logzero import logger
 import pandas as pd
-import glob
 import os
 import datetime as dt
 import numpy as np
@@ -22,7 +21,6 @@ from tqdm import tqdm
 import smart_excel_to_pandas.smart_excel_to_pandas
 import PowerTransformer
 import Outdoor_Breaker
-import pandas_tools
 import yaml_tools
 import os_tools
 
@@ -679,9 +677,9 @@ def main():
     logger.info("CMPC Wide Area Distribution Main Loop")
 
 
-    files_yaml = yaml_tools.read_yaml('./configs','files.yaml')
+    files_yaml = yaml_tools.read_yaml('../configs', 'files.yaml')
 
-    old_path = os_tools.Change_Working_Path('./Data')
+    old_path = os_tools.Change_Working_Path('../Data')
     #Station_filename = 'Station Location a375a0647.xlsx'
     Station_filename = files_yaml['Station_Spreadsheet']['filename']
     Transformer_filename = files_yaml['Transformer_Spreadsheet']['filename']
@@ -843,7 +841,7 @@ def main():
                                            'Feeder_Protection']]
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    writer = pd.ExcelWriter('CMPC_WideArea_AIS.xlsx', engine='xlsxwriter')
+    writer = pd.ExcelWriter('../CMPC_WideArea_AIS.xlsx', engine='xlsxwriter')
 
     # Convert the dataframe to an XlsxWriter Excel object.
     AIStationDF.to_excel(writer, sheet_name='Stations', index=False)

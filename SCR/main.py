@@ -314,7 +314,7 @@ def Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF):
 def main():
     """ Main entry point of the app """
     logger.info("CMPC Wide Area Distrution Main Loop")
-    Change_Working_Path('./Data')
+    Change_Working_Path('../Data')
 
     Station_filename = 'Station Location a375a0647.xlsx'
     Transformer_filename = 'Power Transformer Asset a7c07a1cb.xlsx'
@@ -394,7 +394,7 @@ def main():
                                            'SUB_4_Protection']]
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    writer = pd.ExcelWriter('CMPC_WideArea_AIS.xlsx', engine='xlsxwriter')
+    writer = pd.ExcelWriter('../CMPC_WideArea_AIS.xlsx', engine='xlsxwriter')
 
     # Convert the dataframe to an XlsxWriter Excel object.
     AIStationDF.to_excel(writer, sheet_name='Stations', index=False)
