@@ -24,6 +24,7 @@ import Outdoor_Breaker
 import yaml_tools
 import os_tools
 import Station
+import tkinter as tk
 
 # OS Functions
 
@@ -33,7 +34,7 @@ def Excel_to_Pandas(filename, check_update=False, SheetName=None):
     """Imports excel file to pandas returns filename and df"""
     logger.info('importing file ' + filename)
     df = []
-    if check_update == True:
+    if check_update is True:
         timestamp = dt.datetime.fromtimestamp(Path(filename).stat().st_mtime)
         if dt.datetime.today().date() != timestamp.date():
             root = tk.Tk()
@@ -48,7 +49,7 @@ def Excel_to_Pandas(filename, check_update=False, SheetName=None):
 
     df = Cleanup_Dataframe(df)
     logger.info(df.info(verbose=True))
-    return (filename, df)
+    return filename, df
 
 
 def Cleanup_Dataframe(df):
@@ -61,76 +62,6 @@ def Cleanup_Dataframe(df):
     df.columns = df.columns.str.replace(' ', '_')
 
     return df
-
-
-
-
-
-def transformer_df_cleanup(TransformerDF):
-    TransformerDF = TransformerDF[TransformerDF['XFMR_SERVICE'].str.contains('POWER')]
-    
-    return TransformerDF
-
-
-def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF, Winter_LoadDF, AIStationDF):
-    logger.info('Starting Function PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
-    PowerTransformerDF = PowerTransformerDF[PowerTransformerDF['Station_Name'].isin(list(AIStationDF['Station_Name']))]
-    PowerTransformerDF['Age'] = (dt.date.today() - PowerTransformerDF['Manufacture_Date'].dt.date) / 365
-    Transformer_RiskDF = Transformer_RiskDF.rename(columns={"Asset": "Maximo_Code"})
-    PowerTransformerDF = pd.merge(PowerTransformerDF, Transformer_RiskDF[['Maximo_Code', 'Risk_Index_(Normalized)']],
-                                  on='Maximo_Code', how='left')
-
-    PowerTransformerDF = pd.merge(PowerTransformerDF, Summer_LoadDF[['Maximo_Code', 'Projected_Summer_Load_2020',
-                                                                     'Projected_Summer_Load_2021',
-                                                                     'Projected_Summer_Load_2022',
-                                                                     'Projected_Summer_Load_2023',
-                                                                     'Projected_Summer_Load_2024',
-                                                                     'Projected_Summer_Load_2025']], on='Maximo_Code',
-                                  how='left')
-
-    PowerTransformerDF = pd.merge(PowerTransformerDF, Winter_LoadDF[['Maximo_Code', 'Projected_Winter_Load_2020',
-                                                                     'Projected_Winter_Load_2021',
-                                                                     'Projected_Winter_Load_2022',
-                                                                     'Projected_Winter_Load_2023',
-                                                                     'Projected_Winter_Load_2024',
-                                                                     'Projected_Winter_Load_2025']], on='Maximo_Code',
-                                  how='left')
-
-    for item in ['Projected_Summer_Load_2021', 'Projected_Summer_Load_2022', 'Projected_Summer_Load_2023',
-                 'Projected_Summer_Load_2024', 'Projected_Summer_Load_2025', 'Projected_Winter_Load_2021',
-                 'Projected_Winter_Load_2022', 'Projected_Winter_Load_2023',
-                 'Projected_Winter_Load_2024', 'Projected_Winter_Load_2025']:
-        PowerTransformerDF[item] = np.where(PowerTransformerDF['NUM_PH'] == 1, PowerTransformerDF[item] / 3,
-                                            PowerTransformerDF[item])
-
-    PowerTransformerDF['Max_Projected_Summer_Load'] = PowerTransformerDF[['Projected_Summer_Load_2021',
-                                                                          'Projected_Summer_Load_2022',
-                                                                          'Projected_Summer_Load_2023',
-                                                                          'Projected_Summer_Load_2024',
-                                                                          'Projected_Summer_Load_2025']].max(axis=1)
-
-    PowerTransformerDF['Max_Projected_Winter_Load'] = PowerTransformerDF[['Projected_Winter_Load_2021',
-                                                                          'Projected_Winter_Load_2022',
-                                                                          'Projected_Winter_Load_2023',
-                                                                          'Projected_Winter_Load_2024',
-                                                                          'Projected_Winter_Load_2025']].max(axis=1)
-
-    PowerTransformerDF['Max_MVA_Exceeded'] = False
-    PowerTransformerDF['Max_MVA_Exceeded'] = np.where(
-        (PowerTransformerDF['Max_Projected_Summer_Load'] > PowerTransformerDF['MAXIMUM_MVA']) |
-        (PowerTransformerDF['Max_Projected_Winter_Load'] > PowerTransformerDF['MAXIMUM_MVA']), True,
-        PowerTransformerDF['Max_MVA_Exceeded'])
-
-
-    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
-    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
-    return PowerTransformerDF
-
-
-
-
-
-
 
 def breaker_df_cleanup(BreakerDF):
     BreakerDF = BreakerDF[BreakerDF['BKR_CLASS'].str.contains('OUTDOOR')]
@@ -285,16 +216,6 @@ def Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF):
     return Outdoor_BreakerDF
 
 
-def Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF):
-    PowerTransformerDF['IsFused'] = True
-    PowerTransformerDF['IsFused'] = np.where(
-        PowerTransformerDF['Maximo_Code'].isin(RelayDataDF['Maximo_Asset_Protected']),
-        False, PowerTransformerDF['IsFused'])
-
-
-    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
-    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
-    return PowerTransformerDF
 
 
 
@@ -405,7 +326,7 @@ def main():
                                      df_list[next(
                                          i for i, t in enumerate(df_list) if t[0] == Metalclad_Switchgear_filename)][1])
 
-    PowerTransformerDF = transformer_df_cleanup(
+    PowerTransformerDF = PowerTransformer.transformer_df_cleanup(
         df_list[next(i for i, t in enumerate(df_list) if t[0] == Transformer_filename)][1])
     Outdoor_BreakerDF = breaker_df_cleanup(
         df_list[next(i for i, t in enumerate(df_list) if t[0] == Breaker_filename)][1])
@@ -428,7 +349,7 @@ def main():
     Summer_LoadDF = summer_load_df_create_data(Summer_LoadDF, AIStationDF)
     Winter_LoadDF = summer_load_df_create_data(Winter_LoadDF, AIStationDF)
     AIStationDF = Station.station_df_create_data(AIStationDF, PowerTransformerDF, Outdoor_BreakerDF)
-    PowerTransformerDF = transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF,
+    PowerTransformerDF = PowerTransformer.transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF,
                                                     Winter_LoadDF, AIStationDF)
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
     Outdoor_BreakerDF = Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF)
@@ -439,7 +360,7 @@ def main():
 
     #Outdoor_BreakerDF = Outdoor_Breaker.add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
     Outdoor_BreakerDF = Outdoor_Breaker.add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
-    PowerTransformerDF = Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF)
+    PowerTransformerDF = PowerTransformer.Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF)
 
 
 
