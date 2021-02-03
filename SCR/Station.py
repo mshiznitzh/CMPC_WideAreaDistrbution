@@ -23,6 +23,15 @@ def station_df_cleanup(StationDF, Metalclad_Switchgear_DF):
 
     return StationDF
 
+
+def add_Criticality_to_Stationdf(StationDF, PowerTransformerDF):
+    maxDF = PowerTransformerDF.groupby(['Station_Name'], as_index=False).agg(
+        Transformer_Sum_Criticality_at_Station=('Criticality_(Normalized)', pd.Series.sum))
+    StationDF = pd.merge(StationDF, maxDF, on='Station_Name', how='left')
+    StationDF.drop_duplicates(inplace=True)
+    return StationDF
+
+
 def add_Risk_to_Stationdf(StationDF, PowerTransformerDF):
     maxDF = PowerTransformerDF.groupby(['Station_Name'], as_index=False).agg(
         Max_Risk_Index_at_Station=('Risk_Index_(Normalized)', pd.Series.max))

@@ -354,8 +354,10 @@ def main():
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
     Outdoor_BreakerDF = Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF)
     Outdoor_BreakerDF = Match_Missing_Breakers_to_XFMR(Outdoor_BreakerDF, PowerTransformerDF)
+
     RelayDataDF = relay_df_create_data(RelayDataDF, PowerTransformerDF, Outdoor_BreakerDF)
     AIStationDF = Station.add_Risk_to_Stationdf(AIStationDF, PowerTransformerDF)
+    AIStationDF = Station.add_Criticality_to_Stationdf(AIStationDF, PowerTransformerDF)
     AIStationDF = Station.add_MVA_Exceeded_Stationdf(AIStationDF, PowerTransformerDF)
 
     #Outdoor_BreakerDF = Outdoor_Breaker.add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
@@ -402,12 +404,12 @@ def main():
 
 
     AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name',
-                               'Single_Phase_Station', 'Has_Fused_Bank', 'XFMER_Count', 'Mean_Feeder_Age',
+                               'Single_Phase_Station', 'Has_Fused_Bank', 'XFMER_Count', 'Transformer_Sum_Criticality_at_Station',
                                'Suggested_Approach_Station2', 'Suggested_Solution'
                                ]]
 
     PowerTransformerDF = PowerTransformerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code',
-                                             'Age', 'MAXIMUM_MVA', 'LV_NOM_KV', 'Risk_Index_(Normalized)',
+                                             'Age', 'MAXIMUM_MVA', 'HV_NOM_KV', 'LV_NOM_KV', 'Risk_Index_(Normalized)',
                                              'Max_Projected_Summer_Load', 'Max_Projected_Winter_Load',
                                              'NUM_PH', 'Feeder_Protection',
                                              'Xfmer_Diff_Protection', 'High_Side_Interrupter', 'Suggested_Approach_Bank'
