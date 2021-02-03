@@ -28,7 +28,7 @@ def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_Lo
     PowerTransformerDF = PowerTransformerDF[PowerTransformerDF['Station_Name'].isin(list(AIStationDF['Station_Name']))]
     PowerTransformerDF['Age'] = (dt.date.today() - PowerTransformerDF['Manufacture_Date'].dt.date) / 365
     Transformer_RiskDF = Transformer_RiskDF.rename(columns={"Asset": "Maximo_Code"})
-    PowerTransformerDF = pd.merge(PowerTransformerDF, Transformer_RiskDF[['Maximo_Code', 'Risk_Index_(Normalized)']],
+    PowerTransformerDF = pd.merge(PowerTransformerDF, Transformer_RiskDF[['Maximo_Code', 'Risk_Index_(Normalized)', 'Criticality_(Normalized)']],
                                   on='Maximo_Code', how='left')
 
     PowerTransformerDF = pd.merge(PowerTransformerDF, Summer_LoadDF[['Maximo_Code', 'Projected_Summer_Load_2020',
