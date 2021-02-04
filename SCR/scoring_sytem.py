@@ -1,6 +1,7 @@
 import numpy as np
 
 
+<<<<<<< HEAD
 class PhysicalDesignStation:
     def __init__(self, station_code, bank_list):
         self.properties_score = 0
@@ -93,6 +94,14 @@ class Bank:
         # in dictionary otherwise second argument will
         # be assigned as default value of passed argument
         return switcher.get(self.insulator, np.nan)
+=======
+class PhysicalDesign:
+    def __init__(self):
+        self.construction_score = 0
+        self.bus_score = 0
+        self.insulator_score = 0
+        self.properties_score = 0
+>>>>>>> origin/Deveploment
 
 
 class PowerTransformer:
@@ -149,7 +158,11 @@ class PowerTransformer:
         df.query('Class_Description == POWER_TRANSFORMER / WITH_LTC', inplace=True)
         if df.shape[0] == 1:
             self.regulator_score = 0
+<<<<<<< HEAD
         elif df.shape[0] == 0:
+=======
+        if df.shape[0] == 0:
+>>>>>>> origin/Deveploment
             self.regulator_score = 10
         return self.regulator_score
 
@@ -220,4 +233,11 @@ class Bank:
         self.power_transformer_score_max = 25
         self.Physical_design_score_max = 25
 
+<<<<<<< HEAD
 
+=======
+        self.extra_score = 0
+        self.low_voltage_score = 0
+        self.power_transformer_score = 0
+        self.Physical_design_score = 0
+>>>>>>> origin/Deveploment
