@@ -34,6 +34,7 @@ def add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
 
 def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
     Outdoor_BreakerDF['Feeder_Protection'] = 'Non Sub'
+    Outdoor_BreakerDF['FD_DEV_STATUS'] = np.nan
 
     # SUB IV
     df = RelayDataDF.query(
@@ -44,10 +45,22 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
 
     df = df[df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
 
+    if 'Operating Needs Review' in df.DEV_STATUS.unique():
+        dev = 'Operating Needs Review'
+    elif 'Planned' in df.DEV_STATUS.unique():
+        dev = 'Planned'
+    elif 'Operating' in df.DEV_STATUS.unique():
+        dev = 'Operating'
+
     Outdoor_BreakerDF['Feeder_Protection'] = np.where(Outdoor_BreakerDF['Feeder_Protection'].str.match('Non Sub') &
                                                        Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected),
                                                        'SUB IV',
                                                        Outdoor_BreakerDF['Feeder_Protection'])
+
+    Outdoor_BreakerDF['FD_DEV_STATUS'] = np.where(
+        Outdoor_BreakerDF['Feeder_Protection'].str.match('SUB IV') &
+        Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), dev,
+        Outdoor_BreakerDF['FD_DEV_STATUS'])
 
     # SUB II/III
     df = RelayDataDF.query(
@@ -58,10 +71,22 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
 
     df = df[df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
 
+    if 'Operating Needs Review' in df.DEV_STATUS.unique():
+        dev = 'Operating Needs Review'
+    elif 'Planned' in df.DEV_STATUS.unique():
+        dev = 'Planned'
+    elif 'Operating' in df.DEV_STATUS.unique():
+        dev = 'Operating'
+
     Outdoor_BreakerDF['Feeder_Protection'] = np.where(Outdoor_BreakerDF['Feeder_Protection'].str.match('Non Sub') &
                                                        Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected),
                                                        'SUB II/III',
                                                        Outdoor_BreakerDF['Feeder_Protection'])
+    Outdoor_BreakerDF['FD_DEV_STATUS'] = np.where(
+        Outdoor_BreakerDF['Feeder_Protection'].str.match('SUB II/III') &
+        Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), dev,
+        Outdoor_BreakerDF['FD_DEV_STATUS'])
+
     # DPU2000R_BE151_Standalone
     df = RelayDataDF.query(
         'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("ABB") & MODEL.str.contains("DPU-2000R")')
@@ -71,11 +96,21 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
 
     df = df[df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
 
+    if 'Operating Needs Review' in df.DEV_STATUS.unique():
+        dev = 'Operating Needs Review'
+    elif 'Planned' in df.DEV_STATUS.unique():
+        dev = 'Planned'
+    elif 'Operating' in df.DEV_STATUS.unique():
+        dev = 'Operating'
+
     Outdoor_BreakerDF['Feeder_Protection'] = np.where(Outdoor_BreakerDF['Feeder_Protection'].str.match('Non Sub') &
                                                       Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected),
                                                       'DPU2000R_BE151_Standalone',
                                                       Outdoor_BreakerDF['Feeder_Protection'])
-
+    Outdoor_BreakerDF['FD_DEV_STATUS'] = np.where(
+        Outdoor_BreakerDF['Feeder_Protection'].str.match('DPU2000R_BE151_Standalone') &
+        Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), dev,
+        Outdoor_BreakerDF['FD_DEV_STATUS'])
 
     # SUB I
     df = RelayDataDF.query(
@@ -83,11 +118,21 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
 
     df = df[df.Maximo_Asset_Protected.isin(df.Maximo_Asset_Protected)]
 
+    if 'Operating Needs Review' in df.DEV_STATUS.unique():
+        dev = 'Operating Needs Review'
+    elif 'Planned' in df.DEV_STATUS.unique():
+        dev = 'Planned'
+    elif 'Operating' in df.DEV_STATUS.unique():
+        dev = 'Operating'
+
     Outdoor_BreakerDF['Feeder_Protection'] = np.where(Outdoor_BreakerDF['Feeder_Protection'].str.match('Non Sub') &
         Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB I',
         Outdoor_BreakerDF['Feeder_Protection'])
 
-
+    Outdoor_BreakerDF['FD_DEV_STATUS'] = np.where(
+        Outdoor_BreakerDF['Feeder_Protection'].str.match('SUB I') &
+        Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), dev,
+        Outdoor_BreakerDF['FD_DEV_STATUS'])
 
 
     return Outdoor_BreakerDF
