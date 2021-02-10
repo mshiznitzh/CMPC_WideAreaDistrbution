@@ -56,7 +56,7 @@ def write_data_to_sheet(wb, ws, df):
         write_row(ws, row_data, 1 + index)
 
         write_relay_cell(wb, ws, 1 + index, 8, df.Xfmer_Diff_Protection.iloc[index], df.XFMER_DEV_STATUS.iloc[index])
-        write_relay_cell(wb, ws, 1 + index, 9, df.Feeder_Protection.iloc[index], df.XFMER_DEV_STATUS.iloc[index])
+        write_relay_cell(wb, ws, 1 + index, 9, df.Feeder_Protection.iloc[index], df.FD_DEV_STATUS.iloc[index])
 
         write_dropdown(ws, 1 + index, 2, Con_Options)
         write_dropdown(ws, 1 + index, 3, Bus_Options)
@@ -71,7 +71,7 @@ def main(df):
     for work_center in  df.Work_Center.unique():
         workcenter_df = df.query('Work_Center == @work_center')
 
-        workbook = xlsxwriter.Workbook('../Data/' + work_center + '.xlsx')
+        workbook = xlsxwriter.Workbook('../Data/' + work_center + '.xlsx', {'nan_inf_to_errors': True})
         worksheet = workbook.add_worksheet()
 
         headers = ['Station Name', 'Maximo Code', 'Station Construction', 'Bus', 'Insulators', 'Mobile Equipment Space',

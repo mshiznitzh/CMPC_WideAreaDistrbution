@@ -224,6 +224,7 @@ def Suggested_Approach_Bank(PowerTransformerDF):
     return PowerTransformerDF
 
 def Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
+
     Outdoor_BreakerDF_sorted = Outdoor_BreakerDF.sort_values(by=['Feeder_Protection'])
     Outdoor_BreakerDF_sorted = Outdoor_BreakerDF_sorted.drop_duplicates(subset=['Associated_XFMR'], keep=("first"))
 
@@ -231,7 +232,7 @@ def Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
                                   Outdoor_BreakerDF_sorted[['Associated_XFMR', 'Feeder_Protection']],
                                   left_on='Maximo_Code', right_on='Associated_XFMR', how='left')
 
-
+    PowerTransformerDF.Feeder_Protection.fillna(value='No relays found in PowerBase', inplace=True)
     PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
     logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
     return PowerTransformerDF
@@ -319,6 +320,12 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
     PowerTransformerDF['Xfmer_Diff_Protection'] = 'Non Sub'
     PowerTransformerDF['XFMER_DEV_STATUS'] = np.nan
 
+    def add_XFMER_DEV_STATUS(df, status):
+        tempdf = df.query('DEV_STATUS.str.match(@status)')
+        PowerTransformerDF['XFMER_DEV_STATUS'] = np.where(
+            PowerTransformerDF['Maximo_Code'].isin(tempdf.Maximo_Asset_Protected), status,
+            PowerTransformerDF['XFMER_DEV_STATUS'])
+
     # SUB IV
     df = RelayDataDF.query(
         'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("387")')
@@ -329,22 +336,13 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
 
     df = df[df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
 
-    if 'Operating Needs Review' in df.DEV_STATUS.unique():
-        dev = 'Operating Needs Review'
-    elif 'Planned' in df.DEV_STATUS.unique():
-        dev = 'Planned'
-    elif 'Operating' in df.DEV_STATUS.unique():
-        dev = 'Operating'
-
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
         PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB IV',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
-    PowerTransformerDF['XFMER_DEV_STATUS'] = np.where(
-        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('SUB IV') &
-        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), dev,
-        PowerTransformerDF['XFMER_DEV_STATUS'])
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
 
     # SUB III
     df = RelayDataDF.query(
@@ -352,23 +350,13 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
 
     df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) == 1)
 
-    if 'Operating Needs Review' in df.DEV_STATUS.unique():
-        dev = 'Operating Needs Review'
-    elif 'Planned' in df.DEV_STATUS.unique():
-        dev = 'Planned'
-    elif 'Operating' in df.DEV_STATUS.unique():
-        dev = 'Operating'
-
-
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
         PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB III',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
-    PowerTransformerDF['XFMER_DEV_STATUS'] = np.where(
-        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('SUB III') &
-        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), dev,
-        PowerTransformerDF['XFMER_DEV_STATUS'])
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
 
     # Dual 587 Retrofit
     df = RelayDataDF.query(
@@ -380,22 +368,12 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
 
     # retrodf = dual587df[dual587df.Maximo_Asset_Protected.isin(df2.Maximo_Asset_Protected)]
 
-    if 'Operating Needs Review' in df.DEV_STATUS.unique():
-        dev = 'Operating Needs Review'
-    elif 'Planned' in df.DEV_STATUS.unique():
-        dev = 'Planned'
-    elif 'Operating' in df.DEV_STATUS.unique():
-        dev = 'Operating'
-
-
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'Dual 587 Retrofit',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
-    PowerTransformerDF['XFMER_DEV_STATUS'] = np.where(
-        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Dual 587 Retrofit') &
-        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), dev,
-        PowerTransformerDF['XFMER_DEV_STATUS'])
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
 
     # Dual 387 Retrofit
     df = RelayDataDF.query(
@@ -403,21 +381,12 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
 
     df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) == 2)
 
-    if 'Operating Needs Review' in df.DEV_STATUS.unique():
-        dev = 'Operating Needs Review'
-    elif 'Planned' in df.DEV_STATUS.unique():
-        dev = 'Planned'
-    elif 'Operating' in df.DEV_STATUS.unique():
-        dev = 'Operating'
-
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'Dual 387 Retrofit',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
-    PowerTransformerDF['XFMER_DEV_STATUS'] = np.where(
-        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Dual 387 Retrofit') &
-        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), dev,
-        PowerTransformerDF['XFMER_DEV_STATUS'])
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
 
     # SUB II
     df = RelayDataDF.query(
@@ -425,21 +394,12 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
 
     df = df.groupby('Maximo_Asset_Protected').filter(lambda x: len(x) == 3)
 
-    if 'Operating Needs Review' in df.DEV_STATUS.unique():
-        dev = 'Operating Needs Review'
-    elif 'Planned' in df.DEV_STATUS.unique():
-        dev = 'Planned'
-    elif 'Operating' in df.DEV_STATUS.unique():
-        dev = 'Operating'
-
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB II',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
-    PowerTransformerDF['XFMER_DEV_STATUS'] = np.where(
-        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('SUB II') &
-        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), dev,
-        PowerTransformerDF['XFMER_DEV_STATUS'])
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
 
     df = RelayDataDF.query(
         'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("GE") & MODEL.str.contains("STD")')
@@ -455,22 +415,13 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
     df = RelayDataDF.query(
         'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("GE") & MODEL.str.contains("PJC")')
 
-    if 'Operating Needs Review' in df.DEV_STATUS.unique():
-        dev = 'Operating Needs Review'
-    elif 'Planned' in df.DEV_STATUS.unique():
-        dev = 'Planned'
-    elif 'Operating' in df.DEV_STATUS.unique():
-        dev = 'Operating'
-
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(
         PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB I',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
-    PowerTransformerDF['XFMER_DEV_STATUS'] = np.where(
-        PowerTransformerDF['Xfmer_Diff_Protection'].str.match('SUB I') &
-        PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), dev,
-        PowerTransformerDF['XFMER_DEV_STATUS'])
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
 
     #Fused
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(

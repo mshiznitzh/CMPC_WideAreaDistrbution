@@ -25,6 +25,8 @@ import yaml_tools
 import os_tools
 import Station
 import tkinter as tk
+import District_Responses as dr
+
 
 # OS Functions
 
@@ -63,6 +65,7 @@ def Cleanup_Dataframe(df):
 
     return df
 
+
 def breaker_df_cleanup(BreakerDF):
     BreakerDF = BreakerDF[BreakerDF['BKR_CLASS'].str.contains('OUTDOOR')]
     BreakerDF['Manufacture_Date'] = pd.to_datetime(BreakerDF['Manufacture_Date'], errors='raise')
@@ -88,7 +91,7 @@ def breaker_df_create_data(BreakerDF, PowerTransformerDF, Fault_Reporting_Proiri
 
 
 def relay_df_cleanup(relaydf):
-    relaydf = relaydf[~relaydf['DEV_STATUS'].str.match('Planned')]
+    #relaydf = relaydf[~relaydf['DEV_STATUS'].str.match('Planned')]
     relaydf = relaydf.reset_index(drop=True)
     return relaydf
 
@@ -109,18 +112,17 @@ def relay_df_create_data(relaydf, PowerTransformerDF, Outdoor_BreakerDF):
     relaydf['Maximo_Asset_Protected_Device_Num'] = relaydf['LOCATION'].str.extract('(\d+$)').astype(str)
 
     relaydf = parallelize_dataframe(relaydf, old_funtion, PowerTransformerDF, Outdoor_BreakerDF)
-    #relaydf = old_funtion(relaydf, PowerTransformerDF, Outdoor_BreakerDF)
+    # relaydf = old_funtion(relaydf, PowerTransformerDF, Outdoor_BreakerDF)
 
     return relaydf
+
 
 def parallelize_dataframe(df, func, df1, df2):
     cpu_used = cpu_count()
     df_split = np.array_split(df, cpu_used)
     arr = [(df_split[x], df1, df2) for x in range(len(df_split))]
 
-
     with Pool(cpu_used) as p:
-
         df = pd.concat(p.starmap(func, arr))
         p.close()
         p.join()
@@ -128,29 +130,33 @@ def parallelize_dataframe(df, func, df1, df2):
     df = df.reset_index(drop=True)
     return df
 
-def old_funtion(relaydf, PowerTransformerDF, Outdoor_BreakerDF):
 
+def old_funtion(relaydf, PowerTransformerDF, Outdoor_BreakerDF):
     relaydf = relaydf.reset_index(drop=True)
-    #for index in range(relaydf.shape[0]):
+    # for index in range(relaydf.shape[0]):
     for index in tqdm(range(relaydf.shape[0]), desc='Looping over relay Dataframe'):
         if relaydf['Maximo_Asset_Protected_Device_Type'][index] == 'TRF':
-            df = PowerTransformerDF[(PowerTransformerDF['Maximo_Code'].str.contains(relaydf['Maximo_Asset_Protected_Station'][index])) &
-                                    (PowerTransformerDF['Maximo_Code'].str.contains(str(relaydf['Maximo_Asset_Protected_Device_Num'][index])))
-                                    ]
+            df = PowerTransformerDF[
+                (PowerTransformerDF['Maximo_Code'].str.contains(relaydf['Maximo_Asset_Protected_Station'][index])) &
+                (PowerTransformerDF['Maximo_Code'].str.contains(
+                    str(relaydf['Maximo_Asset_Protected_Device_Num'][index])))
+                ]
 
         elif relaydf['Maximo_Asset_Protected_Device_Type'][index] == 'BKR':
-            df = Outdoor_BreakerDF[(Outdoor_BreakerDF['Maximo_Code'].str.contains(relaydf['Maximo_Asset_Protected_Station'][index])) &
-                                   (Outdoor_BreakerDF['Maximo_Code'].str.contains(relaydf['Maximo_Asset_Protected_Device_Num'][index]))
-                                   ]
+            df = Outdoor_BreakerDF[
+                (Outdoor_BreakerDF['Maximo_Code'].str.contains(relaydf['Maximo_Asset_Protected_Station'][index])) &
+                (Outdoor_BreakerDF['Maximo_Code'].str.contains(relaydf['Maximo_Asset_Protected_Device_Num'][index]))
+                ]
 
         if df.shape[0] >> 0:
             try:
                 relaydf['Maximo_Asset_Protected'].iloc[index] = df['Maximo_Code'].iloc[0]
             except:
-               print(df['Maximo_Code'])
+                print(df['Maximo_Code'])
         else:
             relaydf['Maximo_Asset_Protected'][index] = np.nan
     return relaydf
+
 
 def summer_load_df_cleanup(Summer_LoadDF):
     # One offs
@@ -207,6 +213,7 @@ def summer_load_df_create_data(Summer_LoadDF, AIStationDF):
 
     return Summer_LoadDF
 
+
 def Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF):
     Associated_Breaker_DetailsDF = Associated_Breaker_DetailsDF.rename(
         columns={"Maximo_Code": "Associated_XFMR", "Associated_Breaker_Maximo_Code": "Maximo_Code"})
@@ -216,25 +223,17 @@ def Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF):
     return Outdoor_BreakerDF
 
 
-
-
-
-
-
-
-
 def CS_df_cleanup(df):
     return df
 
 
-
-
-
 def Match_Missing_Breakers_to_XFMR(Outdoor_BreakerDF, PowerTransformerDF):
-    df = PowerTransformerDF[PowerTransformerDF['Station_Name'].isin(PowerTransformerDF['Station_Name'].drop_duplicates(keep=False))]
-    df = df.rename(columns={'Maximo_Code':'Associated_XFMR'})
+    df = PowerTransformerDF[
+        PowerTransformerDF['Station_Name'].isin(PowerTransformerDF['Station_Name'].drop_duplicates(keep=False))]
+    df = df.rename(columns={'Maximo_Code': 'Associated_XFMR'})
     df = df[df['Station_Name'].isin(Outdoor_BreakerDF[Outdoor_BreakerDF['Associated_XFMR'].isnull()]['Station_Name'])]
-    Outdoor_BreakerDF = pd.merge(Outdoor_BreakerDF, df[['Associated_XFMR', 'Station_Name']],on='Station_Name', how='left')
+    Outdoor_BreakerDF = pd.merge(Outdoor_BreakerDF, df[['Associated_XFMR', 'Station_Name']], on='Station_Name',
+                                 how='left')
     Outdoor_BreakerDF['Associated_XFMR'] = np.nan
     Outdoor_BreakerDF['Associated_XFMR'] = np.where(Outdoor_BreakerDF['Associated_XFMR_x'].notnull(),
                                                     Outdoor_BreakerDF['Associated_XFMR_x'],
@@ -249,16 +248,14 @@ def Match_Missing_Breakers_to_XFMR(Outdoor_BreakerDF, PowerTransformerDF):
     return Outdoor_BreakerDF
 
 
-
 def main():
     """ Main entry point of the app """
     logger.info("CMPC Wide Area Distribution Main Loop")
 
-
     files_yaml = yaml_tools.read_yaml('../configs', 'files.yaml')
 
     old_path = os_tools.Change_Working_Path('../Data')
-    #Station_filename = 'Station Location a375a0647.xlsx'
+    # Station_filename = 'Station Location a375a0647.xlsx'
     Station_filename = files_yaml['Station_Spreadsheet']['filename']
     Transformer_filename = files_yaml['Transformer_Spreadsheet']['filename']
     Breaker_filename = files_yaml['Breaker_Spreadsheet']['filename']
@@ -275,13 +272,12 @@ def main():
 
     Excel_Files = [Station_filename, Transformer_filename, Breaker_filename, Relay_filename,
                    Metalclad_Switchgear_filename, Summer_Load_Filename, Winter_Load_Filename,
-                    Circuit_Switcher_filename]
+                   Circuit_Switcher_filename]
 
-
-    #poolo = Pool(processes=15)
+    # poolo = Pool(processes=15)
 
     High_Side_Protection_DF = Excel_to_Pandas(Associated_Breaker_Details_filename, check_update=False,
-                                                   SheetName='High Side Protection')
+                                              SheetName='High Side Protection')
 
     High_Side_Protection_DF = High_Side_Protection_DF[1]
 
@@ -289,42 +285,41 @@ def main():
                                                    SheetName='Associated Breaker Details')
     Associated_Breaker_DetailsDF = Associated_Breaker_DetailsDF[1]
     # Import Excel files
-    #df_listo = pool.map(Excel_to_Pandas, Excel_Files)
+    # df_listo = pool.map(Excel_to_Pandas, Excel_Files)
 
-    pool = Pool(processes= cpu_count())
+    pool = Pool(processes=cpu_count())
     df_list = pool.map(smart_excel_to_pandas.smart_excel_to_pandas.Smart_Excel_to_Pandas, Excel_Files)
     pool.close()
     pool.join()
 
     Excel_Files = [Fault_Reporting_Proiritization_filename, Fault_Reporting_Proiritization_filename1]
 
-    pool = Pool(processes= cpu_count())
-    #df_list.append(pool.starmap(smart_excel_to_pandas.smart_excel_to_pandas.Smart_Excel_to_Pandas,
-     #                           [(Excel_Files[0],None), (Excel_Files[1],None)]))
+    pool = Pool(processes=cpu_count())
+    # df_list.append(pool.starmap(smart_excel_to_pandas.smart_excel_to_pandas.Smart_Excel_to_Pandas,
+    #                           [(Excel_Files[0],None), (Excel_Files[1],None)]))
     df_list1 = pool.map(Excel_to_Pandas, Excel_Files)
 
     df_list = df_list + df_list1
     pool.close()
     pool.join()
 
-
-
-    #df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1] = pd.concat([
+    # df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1] = pd.concat([
     df = pd.concat([
-       df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1],
-       df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename1)][1]], axis=0, ignore_index=True)
+        df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename)][1],
+        df_list[next(i for i, t in enumerate(df_list) if t[0] == Fault_Reporting_Proiritization_filename1)][1]], axis=0,
+        ignore_index=True)
     tup = (Fault_Reporting_Proiritization_filename, df)
     df_list = df_list + [tup]
     del df_list[10]
-
 
     Transformer_RiskDF = Cleanup_Dataframe(pd.read_csv(Transformer_Risk_filename))
 
     # Data Cleanup
 
-    AIStationDF = Station.station_df_cleanup(df_list[next(i for i, t in enumerate(df_list) if t[0] == Station_filename)][1],
-                                     df_list[next(
-                                         i for i, t in enumerate(df_list) if t[0] == Metalclad_Switchgear_filename)][1])
+    AIStationDF = Station.station_df_cleanup(
+        df_list[next(i for i, t in enumerate(df_list) if t[0] == Station_filename)][1],
+        df_list[next(
+            i for i, t in enumerate(df_list) if t[0] == Metalclad_Switchgear_filename)][1])
 
     PowerTransformerDF = PowerTransformer.transformer_df_cleanup(
         df_list[next(i for i, t in enumerate(df_list) if t[0] == Transformer_filename)][1])
@@ -349,8 +344,9 @@ def main():
     Summer_LoadDF = summer_load_df_create_data(Summer_LoadDF, AIStationDF)
     Winter_LoadDF = summer_load_df_create_data(Winter_LoadDF, AIStationDF)
     AIStationDF = Station.station_df_create_data(AIStationDF, PowerTransformerDF, Outdoor_BreakerDF)
-    PowerTransformerDF = PowerTransformer.transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF,
-                                                    Winter_LoadDF, AIStationDF)
+    PowerTransformerDF = PowerTransformer.transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF,
+                                                                     Summer_LoadDF,
+                                                                     Winter_LoadDF, AIStationDF)
     Outdoor_BreakerDF = breaker_df_create_data(Outdoor_BreakerDF, PowerTransformerDF, Fault_Reporting_ProiritizationDF)
     Outdoor_BreakerDF = Add_Associated_XMR_Details(Outdoor_BreakerDF, Associated_Breaker_DetailsDF)
     Outdoor_BreakerDF = Match_Missing_Breakers_to_XFMR(Outdoor_BreakerDF, PowerTransformerDF)
@@ -360,18 +356,16 @@ def main():
     AIStationDF = Station.add_Criticality_to_Stationdf(AIStationDF, PowerTransformerDF)
     AIStationDF = Station.add_MVA_Exceeded_Stationdf(AIStationDF, PowerTransformerDF)
 
-    #Outdoor_BreakerDF = Outdoor_Breaker.add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
+    # Outdoor_BreakerDF = Outdoor_Breaker.add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
     Outdoor_BreakerDF = Outdoor_Breaker.add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF)
     PowerTransformerDF = PowerTransformer.Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF)
-
-
 
     AIStationDF = Station.Add_Fused_Bank_to_Stationdf(AIStationDF, PowerTransformerDF)
     PowerTransformerDF = PowerTransformer.Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF)
     PowerTransformerDF = PowerTransformer.Add_FD_DEV_STATUS_on_Bank(PowerTransformerDF, Outdoor_BreakerDF)
     AIStationDF = Station.Add_Feeder_Protection_on_Station(PowerTransformerDF, AIStationDF)
     AIStationDF = Station.Add_Bus_Tie_at_Station(AIStationDF, Outdoor_BreakerDF)
-    #PowerTransformerDF = PowerTransformer.add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF)
+    # PowerTransformerDF = PowerTransformer.add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF)
     PowerTransformerDF = PowerTransformer.add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF)
     PowerTransformerDF = PowerTransformer.Add_High_Side_Interrupter_PowerTransformerDF(PowerTransformerDF,
                                                                                        High_Side_Protection_DF)
@@ -381,20 +375,26 @@ def main():
     AIStationDF = Station.Suggested_Approach_Station(AIStationDF)
     PowerTransformerDF = PowerTransformer.Suggested_Approach_Bank(PowerTransformerDF)
 
-    #AIStationDF = pandas_tools.add_colunms_to_df(AIStationDF.copy(),)
+    # AIStationDF = pandas_tools.add_colunms_to_df(AIStationDF.copy(),)
     AIStationDF = Station.Suggested_Approach_Station2(AIStationDF, PowerTransformerDF.copy())
     AIStationDF = Station.Add_Needed_MVA_Station(AIStationDF.copy(), PowerTransformerDF.copy())
     AIStationDF = Station.Add_Suggested_Solution_Station(AIStationDF.copy())
 
+    # PowerTransformerDF.query('Suggested_Approach_Bank.str.contains("Component")', engine=python)
+    dr.main(PowerTransformerDF.query(
+        'Suggested_Approach_Bank.str.contains("Component") or Suggested_Approach_Bank.str.contains("Rebuild")'))
+
+    #dr.main(PowerTransformerDF.query('Suggested_Approach_Bank.str.contains("Rebuild")'))
 
     # Analytics
-    df = PowerTransformerDF.groupby(['Feeder_Protection', 'Xfmer_Diff_Protection', 'High_Side_Interrupter', 'Suggested_Approach_Bank'],
-                             dropna=False).size().reset_index().rename(columns={0: 'count'})
+    df = PowerTransformerDF.groupby(
+        ['Feeder_Protection', 'Xfmer_Diff_Protection', 'High_Side_Interrupter', 'Suggested_Approach_Bank'],
+        dropna=False).size().reset_index().rename(columns={0: 'count'})
     df.to_excel('Bank Analytics.xlsx')
 
-
     df = AIStationDF.groupby(['Single_Phase_Station', 'FIDequalXFMER', 'Xfmer_Diff_Protection', 'Bus_Equal_XFMER',
-                              'Feeder_Protection', 'Suggested_Approach_Station'], dropna=False).size().reset_index().rename(columns={0:'count'})
+                              'Feeder_Protection', 'Suggested_Approach_Station'],
+                             dropna=False).size().reset_index().rename(columns={0: 'count'})
     df.to_excel('Analytics.xlsx')
     # Select columns to keep
     # AIStationDF = AIStationDF[
@@ -402,10 +402,9 @@ def main():
     #   'Has_Fused_Bank', 'XFMER_Count', 'BUS_TIE_Count',  'Max_Risk_Index_at_Station', 'Max_MVA_Exceeded', 'Mean_Feeder_Age', 'Feeder_Protection'
     #  ]]
 
-
-
     AIStationDF = AIStationDF[['Region', 'Work_Center', 'Maximo_Code', 'Station_Name',
-                               'Single_Phase_Station', 'Has_Fused_Bank', 'XFMER_Count', 'Transformer_Sum_Criticality_at_Station',
+                               'Single_Phase_Station', 'Has_Fused_Bank', 'XFMER_Count',
+                               'Transformer_Sum_Criticality_at_Station',
                                'Suggested_Approach_Station2', 'Suggested_Solution'
                                ]]
 
@@ -419,7 +418,7 @@ def main():
     Outdoor_BreakerDF = Outdoor_BreakerDF[['Region', 'Work_Center', 'Station_Name', 'Maximo_Code', 'Age',
                                            'BKR_SERVICE', 'SELF_CONTAINED', 'Manufacturer', 'BKR_MECH_MOD',
                                            'BKR_INTERR', 'Associated_XFMR', 'DOC_Fault_Reporting_Prioritization',
-                                           'Feeder_Protection']]
+                                           'Feeder_Protection', 'FD_DEV_STATUS']]
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     writer = pd.ExcelWriter('../CMPC_WideArea_AIS.xlsx', engine='xlsxwriter')
@@ -431,7 +430,7 @@ def main():
     RelayDataDF.to_excel(writer, sheet_name='Relay', index=False)
     Summer_LoadDF.to_excel(writer, sheet_name='Summer Load', index=False)
     Winter_LoadDF.to_excel(writer, sheet_name='Winter Load', index=False)
-    #Circuit_Switcher_df.to_excel(writer, sheet_name='Circuit Switcher', index=False)
+    # Circuit_Switcher_df.to_excel(writer, sheet_name='Circuit Switcher', index=False)
     # Close the Pandas Excel writer and output the Excel file.
     writer.save()
 
