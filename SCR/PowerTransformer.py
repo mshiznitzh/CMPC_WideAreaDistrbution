@@ -236,6 +236,19 @@ def Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
     logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
     return PowerTransformerDF
 
+def Add_FD_DEV_STATUS_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
+    Outdoor_BreakerDF_sorted = Outdoor_BreakerDF.sort_values(by=['Feeder_Protection'])
+    Outdoor_BreakerDF_sorted = Outdoor_BreakerDF_sorted.drop_duplicates(subset=['Associated_XFMR'], keep=("first"))
+
+    PowerTransformerDF = pd.merge(PowerTransformerDF,
+                                  Outdoor_BreakerDF_sorted[['Associated_XFMR', 'FD_DEV_STATUS']],
+                                  left_on='Maximo_Code', right_on='Associated_XFMR', how='left')
+
+
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
+    return PowerTransformerDF
+
 def Add_High_Side_Interrupter_PowerTransformerDF(PowerTransformerDF, High_Side_Protection_DF):
 
     PowerTransformerDF = pd.merge(PowerTransformerDF, High_Side_Protection_DF[['Maximo_Code', 'High_Side_Interrupter']], how= 'left', on='Maximo_Code')

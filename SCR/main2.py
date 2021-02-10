@@ -368,6 +368,7 @@ def main():
 
     AIStationDF = Station.Add_Fused_Bank_to_Stationdf(AIStationDF, PowerTransformerDF)
     PowerTransformerDF = PowerTransformer.Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF)
+    PowerTransformerDF = PowerTransformer.Add_FD_DEV_STATUS_on_Bank(PowerTransformerDF, Outdoor_BreakerDF)
     AIStationDF = Station.Add_Feeder_Protection_on_Station(PowerTransformerDF, AIStationDF)
     AIStationDF = Station.Add_Bus_Tie_at_Station(AIStationDF, Outdoor_BreakerDF)
     #PowerTransformerDF = PowerTransformer.add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF)
