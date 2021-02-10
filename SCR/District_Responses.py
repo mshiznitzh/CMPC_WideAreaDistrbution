@@ -26,6 +26,8 @@ def write_relay_cell(wb, ws, row, column, vaule, Dev_Status):
         cell_format.set_bg_color('red')
     elif Dev_Status == 'Planned':
         cell_format.set_bg_color('yellow')
+    else:
+        cell_format.set_bg_color('white')
 
     ws.write(row, column, vaule, cell_format)
 
