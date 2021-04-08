@@ -1,7 +1,83 @@
 import pandas as pd
 import numpy as np
 import logging
+import datetime as dt
+
 logger = logging.getLogger('root')
+
+
+def transformer_df_cleanup(TransformerDF):
+    TransformerDF = TransformerDF[TransformerDF['XFMR_SERVICE'].str.contains('POWER')]
+
+    return TransformerDF
+
+def Add_fused_Bank_to_PowerTransformerDF(PowerTransformerDF, RelayDataDF):
+    PowerTransformerDF['IsFused'] = True
+    PowerTransformerDF['IsFused'] = np.where(
+        PowerTransformerDF['Maximo_Code'].isin(RelayDataDF['Maximo_Asset_Protected']),
+        False, PowerTransformerDF['IsFused'])
+
+
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
+    return PowerTransformerDF
+
+
+def transformer_df_create_data(PowerTransformerDF, Transformer_RiskDF, Summer_LoadDF, Winter_LoadDF, AIStationDF):
+    logger.info('Starting Function PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
+    PowerTransformerDF = PowerTransformerDF[PowerTransformerDF['Station_Name'].isin(list(AIStationDF['Station_Name']))]
+    PowerTransformerDF['Age'] = (dt.date.today() - PowerTransformerDF['Manufacture_Date'].dt.date) / 365
+    Transformer_RiskDF = Transformer_RiskDF.rename(columns={"Asset": "Maximo_Code"})
+    PowerTransformerDF = pd.merge(PowerTransformerDF, Transformer_RiskDF[['Maximo_Code', 'Risk_Index_(Normalized)', 'Criticality_(Normalized)']],
+                                  on='Maximo_Code', how='left')
+
+    PowerTransformerDF = pd.merge(PowerTransformerDF, Summer_LoadDF[['Maximo_Code', 'Projected_Summer_Load_2020',
+                                                                     'Projected_Summer_Load_2021',
+                                                                     'Projected_Summer_Load_2022',
+                                                                     'Projected_Summer_Load_2023',
+                                                                     'Projected_Summer_Load_2024',
+                                                                     'Projected_Summer_Load_2025']], on='Maximo_Code',
+                                  how='left')
+
+    PowerTransformerDF = pd.merge(PowerTransformerDF, Winter_LoadDF[['Maximo_Code', 'Projected_Winter_Load_2020',
+                                                                     'Projected_Winter_Load_2021',
+                                                                     'Projected_Winter_Load_2022',
+                                                                     'Projected_Winter_Load_2023',
+                                                                     'Projected_Winter_Load_2024',
+                                                                     'Projected_Winter_Load_2025']], on='Maximo_Code',
+                                  how='left')
+
+    for item in ['Projected_Summer_Load_2021', 'Projected_Summer_Load_2022', 'Projected_Summer_Load_2023',
+                 'Projected_Summer_Load_2024', 'Projected_Summer_Load_2025', 'Projected_Winter_Load_2021',
+                 'Projected_Winter_Load_2022', 'Projected_Winter_Load_2023',
+                 'Projected_Winter_Load_2024', 'Projected_Winter_Load_2025']:
+        PowerTransformerDF[item] = np.where(PowerTransformerDF['NUM_PH'] == 1, PowerTransformerDF[item] / 3,
+                                            PowerTransformerDF[item])
+
+    PowerTransformerDF['Max_Projected_Summer_Load'] = PowerTransformerDF[['Projected_Summer_Load_2021',
+                                                                          'Projected_Summer_Load_2022',
+                                                                          'Projected_Summer_Load_2023',
+                                                                          'Projected_Summer_Load_2024',
+                                                                          'Projected_Summer_Load_2025']].max(axis=1)
+
+    PowerTransformerDF['Max_Projected_Winter_Load'] = PowerTransformerDF[['Projected_Winter_Load_2021',
+                                                                          'Projected_Winter_Load_2022',
+                                                                          'Projected_Winter_Load_2023',
+                                                                          'Projected_Winter_Load_2024',
+                                                                          'Projected_Winter_Load_2025']].max(axis=1)
+
+    PowerTransformerDF['Max_MVA_Exceeded'] = False
+    PowerTransformerDF['Max_MVA_Exceeded'] = np.where(
+        (PowerTransformerDF['Max_Projected_Summer_Load'] > PowerTransformerDF['MAXIMUM_MVA']) |
+        (PowerTransformerDF['Max_Projected_Winter_Load'] > PowerTransformerDF['MAXIMUM_MVA']), True,
+        PowerTransformerDF['Max_MVA_Exceeded'])
+
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
+    return PowerTransformerDF
+
+
+
 
 def Suggested_Approach_Bank(PowerTransformerDF):
     Modern_XFMER_Protection = ['SUB I', 'SUB II','SUB III','SUB IV', 'Dual 387 Retrofit', 'Dual 587 Retrofit']
@@ -148,11 +224,25 @@ def Suggested_Approach_Bank(PowerTransformerDF):
     return PowerTransformerDF
 
 def Add_Feeder_Protection_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
+
     Outdoor_BreakerDF_sorted = Outdoor_BreakerDF.sort_values(by=['Feeder_Protection'])
     Outdoor_BreakerDF_sorted = Outdoor_BreakerDF_sorted.drop_duplicates(subset=['Associated_XFMR'], keep=("first"))
 
     PowerTransformerDF = pd.merge(PowerTransformerDF,
                                   Outdoor_BreakerDF_sorted[['Associated_XFMR', 'Feeder_Protection']],
+                                  left_on='Maximo_Code', right_on='Associated_XFMR', how='left')
+
+    PowerTransformerDF.Feeder_Protection.fillna(value='No relays found in PowerBase', inplace=True)
+    PowerTransformerDF.drop_duplicates(subset='Maximo_Code', keep="last", inplace=True)
+    logger.info('Ending PowerTransformerDF has ' + str(PowerTransformerDF.shape[0]) + ' rows')
+    return PowerTransformerDF
+
+def Add_FD_DEV_STATUS_on_Bank(PowerTransformerDF, Outdoor_BreakerDF):
+    Outdoor_BreakerDF_sorted = Outdoor_BreakerDF.sort_values(by=['Feeder_Protection'])
+    Outdoor_BreakerDF_sorted = Outdoor_BreakerDF_sorted.drop_duplicates(subset=['Associated_XFMR'], keep=("first"))
+
+    PowerTransformerDF = pd.merge(PowerTransformerDF,
+                                  Outdoor_BreakerDF_sorted[['Associated_XFMR', 'FD_DEV_STATUS']],
                                   left_on='Maximo_Code', right_on='Associated_XFMR', how='left')
 
 
@@ -228,6 +318,13 @@ def add_Xfmer_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF
 
 def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerDF):
     PowerTransformerDF['Xfmer_Diff_Protection'] = 'Non Sub'
+    PowerTransformerDF['XFMER_DEV_STATUS'] = np.nan
+
+    def add_XFMER_DEV_STATUS(df, status):
+        tempdf = df.query('DEV_STATUS.str.match(@status)')
+        PowerTransformerDF['XFMER_DEV_STATUS'] = np.where(
+            PowerTransformerDF['Maximo_Code'].isin(tempdf.Maximo_Asset_Protected), status,
+            PowerTransformerDF['XFMER_DEV_STATUS'])
 
     # SUB IV
     df = RelayDataDF.query(
@@ -244,6 +341,9 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB IV',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
+
     # SUB III
     df = RelayDataDF.query(
         'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("587")')
@@ -255,6 +355,8 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB III',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
 
     # Dual 587 Retrofit
     df = RelayDataDF.query(
@@ -270,6 +372,9 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'Dual 587 Retrofit',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
+
     # Dual 387 Retrofit
     df = RelayDataDF.query(
         'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("SEL") & MODEL.str.contains("387")')
@@ -280,6 +385,9 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'Dual 387 Retrofit',
         PowerTransformerDF['Xfmer_Diff_Protection'])
 
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
+
     # SUB II
     df = RelayDataDF.query(
         'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("GE") & MODEL.str.contains("STD")')
@@ -289,6 +397,9 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB II',
         PowerTransformerDF['Xfmer_Diff_Protection'])
+
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
 
     df = RelayDataDF.query(
         'PROT_TYPE.str.match("DISTRIBUTION TRANSFORMER") & MFG.str.match("GE") & MODEL.str.contains("STD")')
@@ -308,6 +419,9 @@ def add_Xfmer2_Diff_Protection_PowerTransformerDF(RelayDataDF, PowerTransformerD
         PowerTransformerDF['Xfmer_Diff_Protection'].str.match('Non Sub') &
         PowerTransformerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB I',
         PowerTransformerDF['Xfmer_Diff_Protection'])
+
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_XFMER_DEV_STATUS(df, status)
 
     #Fused
     PowerTransformerDF['Xfmer_Diff_Protection'] = np.where(

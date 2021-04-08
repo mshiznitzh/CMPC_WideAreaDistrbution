@@ -34,6 +34,13 @@ def add_Relay_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
 
 def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
     Outdoor_BreakerDF['Feeder_Protection'] = 'Non Sub'
+    Outdoor_BreakerDF['FD_DEV_STATUS'] = np.nan
+
+    def add_FD_DEV_STATUS(df, status):
+        tempdf = df.query('DEV_STATUS.str.match(@status)')
+        Outdoor_BreakerDF['FD_DEV_STATUS'] = np.where(
+            Outdoor_BreakerDF['Maximo_Code'].isin(tempdf.Maximo_Asset_Protected), status,
+            Outdoor_BreakerDF['FD_DEV_STATUS'])
 
     # SUB IV
     df = RelayDataDF.query(
@@ -49,6 +56,11 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
                                                        'SUB IV',
                                                        Outdoor_BreakerDF['Feeder_Protection'])
 
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_FD_DEV_STATUS(df, status)
+
+
+
     # SUB II/III
     df = RelayDataDF.query(
         'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("ABB") & MODEL.str.contains("DPU-2000R")')
@@ -62,6 +74,10 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
                                                        Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected),
                                                        'SUB II/III',
                                                        Outdoor_BreakerDF['Feeder_Protection'])
+
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_FD_DEV_STATUS(df, status)
+
     # DPU2000R_BE151_Standalone
     df = RelayDataDF.query(
         'PROT_TYPE.isin(["DISTRIBUTION FEEDER", "DISTRIBUTION FEEDER - UNDERFREQUENCY"]) & MFG.str.match("ABB") & MODEL.str.contains("DPU-2000R")')
@@ -75,7 +91,8 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
                                                       Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected),
                                                       'DPU2000R_BE151_Standalone',
                                                       Outdoor_BreakerDF['Feeder_Protection'])
-
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_FD_DEV_STATUS(df, status)
 
     # SUB I
     df = RelayDataDF.query(
@@ -87,7 +104,8 @@ def add_Relay2_Outdoor_BreakerDF(RelayDataDF, Outdoor_BreakerDF):
         Outdoor_BreakerDF['Maximo_Code'].isin(df.Maximo_Asset_Protected), 'SUB I',
         Outdoor_BreakerDF['Feeder_Protection'])
 
-
+    for status in ['Operating', 'Operating Needs Review', 'Planned']:
+        add_FD_DEV_STATUS(df, status)
 
 
     return Outdoor_BreakerDF
